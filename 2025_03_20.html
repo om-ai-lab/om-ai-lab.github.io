@@ -28,7 +28,7 @@
         <p>Key innovations include reward engineering to suppress redundant bounding boxes and length-controlled outputs, addressing critical limitations of traditional AP metrics. The results validate that RL learns generalizable detection principles rather than memorizing training data, advancing open-vocabulary object detection in real-world scenarios.</p>
 
         <div class="image-container">
-            <img src="images/coco_overall.v2.png" alt="COCO results">
+            <img src="images/coco_overall.v3.png" alt="COCO results">
             <p><em>Results on filtered COCO val2017 set</em></p>
         </div>
 
@@ -126,32 +126,32 @@ Other objects like swans, apples, masks, volleyballs and yoga poses are not in t
             <tbody>
                 <tr>
                     <td>Base</td>
-                    <td>13.8</td>
+                    <td>14.2</td>
                     <td>50.93</td>
                     <td>32.97</td>
                 </tr>
                 <tr>
                     <td>Base 7B</td>
-                    <td>14.2</td>
+                    <td>14.4</td>
                     <td>49.79</td>
                     <td>32.88</td>
                 </tr>
                 <tr>
                     <td>SFT Model</td>
-                    <td>17.8</td>
+                    <td>18.5</td>
                     <td>53.15</td>
                     <td>39.4</td>
                 </tr>
                 <tr>
                     <td>RL Model</td>
-                    <td><strong>20.1</strong></td>
+                    <td><strong>21.1</strong></td>
                     <td><strong>57.57</strong></td>
                     <td><strong>43.73</strong></td>
                 </tr>
             </tbody>
         </table>
 
-        <p>The RL-trained model demonstrated substantial improvements over the SFT model, with a 2.3 percentage point increase in mAP (20.1% vs 17.8%), 4.42 points higher in Greedy Precision (57.57% vs 53.15%), and 4.33 points better in Greedy Recall (43.73% vs 39.4%). These consistent improvements across all metrics demonstrate RL's superior generalization capability.</p>
+        <p>The RL-trained model demonstrated substantial improvements over the SFT model, with a 2.6 percentage point increase in mAP (21.1% vs 18.5%), 4.42 points higher in Greedy Precision (57.57% vs 53.15%), and 4.33 points better in Greedy Recall (43.73% vs 39.4%). These consistent improvements across all metrics demonstrate RL's superior generalization capability.</p>
 
         <h3>OVDEval Benchmark Results</h3>
         <p>On the comprehensive OVDEval benchmark, the RL model showed significant advantages over SFT in several key areas:</p>
