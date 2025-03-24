@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experimental Findings in Vision Language Model Training with VLM-R1</title>
+    <link rel="stylesheet" href="css/blog-styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">Back to Blog Index</a>
+    </nav>
+    
+    <header>
+        <h1>Experimental Findings in Vision Language Model Training with VLM-R1</h1>
+        <p><em>Published on March 25, 2025</em></p>
+    </header>
+    
+    <main>
+        <h2>TL;DR</h2>
+        <p>This work presents comprehensive experimental findings on optimizing Vision Language Models (VLMs) for object detection through reinforcement learning, focusing on Qwen2.5-VL-3B and 7B models. Key findings include:</p>
+
+        <ul>
+            <li><strong>Reward Engineering Breakthroughs:</strong>
+                <ul>
+                    <li>Weighted sum with cosine reward achieved best performance (+1.8% mAP over baseline AP rewards)</li>
+                    <li>Novel repetition penalty helped reduce redundant detections while maintaining high precision (77.08%)</li>
+                </ul>
+            </li>
+            <li><strong>Model Size Impact:</strong>
+                <ul>
+                    <li>7B models showed stronger initial format adherence (0.75 vs 0.4 format score)</li>
+                    <li>3B models demonstrated more potential for improvement through prompt engineering</li>
+                </ul>
+            </li>
+            <li><strong>Training Data Insights:</strong>
+                <ul>
+                    <li>Pure Object Detection outperformed mixed approaches (+2.1% mAP over mixed training)</li>
+                    <li>Small object specialized training improved precision (+16.37%) with minimal recall trade-off</li>
+                </ul>
+            </li>
+        </ul>
+
+        <p>The findings provide practical guidelines for VLM training optimization, particularly highlighting the importance of reward engineering and model-specific prompt strategies. Results demonstrate that careful tuning of these elements can significantly enhance object detection performance while maintaining model efficiency.</p>
+
+
+
+        <h2>Introduction</h2>
+        <p>This blog post summarizes our key findings and insights from extensive experimentation with Reinforcement Learning (RL) for object detection in Vision Language Models (VLMs), specifically focusing on Qwen2.5-VL-3B and 7B. Our experiments covered various aspects including training methodologies, data preparation strategies, reward functions, and prompt engineering.</p>
+
+        <h2>1. Training Options Overview</h2>
+
+        <h3>1.1 Training Datasets</h3>
+        <ul>
+            <li><strong>COCO Dataset</strong>: Standard object detection dataset with 80 categories</li>
+            <li><strong>OVDEval Dataset</strong>: Object Vision Detection Evaluation dataset 
+                <a href="https://github.com/om-ai-lab/OVDEval">https://github.com/om-ai-lab/OVDEval</a>
+            </li>
+            <li><strong>D³ Dataset</strong>: Diverse object detection dataset
+                <a href="https://github.com/shikras/d-cube">https://github.com/shikras/d-cube</a>
+            </li>
+        </ul>
+
+        <h3>1.2 Evaluation Datasets</h3>
+        <ul>
+            <li><strong>COCO_filtered (COCO_pos_1)</strong>: Categories with fewer than 10 annotation boxes</li>
+            <li><strong>COCO_pos_2</strong>: Images where each category has only one bounding box</li>
+            <li><strong>COCO_pos_3</strong>: Images where total box count across categories is under 10</li>
+            <li><strong>REFCOCO</strong>: Reference expression comprehension benchmark (in-domain)</li>
+            <li><strong>REFGTA</strong>: Reference expression comprehension benchmark (out-of-domain)</li>
+            <li><strong>OVDEval</strong>: Test set for comprehensive object detection capabilities</li>
+        </ul>
+
+        <h3>1.3 RL Reward Options</h3>
+        <ul>
+            <li><strong>AP50</strong>: Average Precision at IoU threshold of 0.5</li>
+            <li><strong>AP</strong>: Average Precision across multiple IoU thresholds</li>
+            <li><strong>Weighted_sum</strong>: Combination of position accuracy and detection completeness</li>
+            <li><strong>Cosine reward</strong>: Promotes response efficiency</li>
+            <li><strong>Repetition reward</strong>: Penalizes repetitive patterns in outputs</li>
+        </ul>
+
+        <h3>1.4 Training Methods</h3>
+        <ul>
+            <li><strong>Supervised Fine-Tuning (SFT)</strong>: Direct learning from human annotations</li>
+            <li><strong>Reinforcement Learning (RL)</strong>: Learning from reward signals</li>
+            <li><strong>Baseline Models</strong>: Qwen2.5-VL-3B and Qwen2.5-VL-7B</li>
+        </ul>
+
+        <h3>1.5 Prompt Formats</h3>
+        <ul>
+            <li><strong>Standard prompt</strong>: "Output the thinking process in &lt;think&gt; &lt;/think&gt; and final answer in &lt;answer&gt; &lt;/answer&gt; tags."</li>
+            <li><strong>Enhanced prompt</strong>: "First thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within &lt;think&gt; &lt;/think&gt; and &lt;answer&gt; &lt;/answer&gt; tags, respectively, i.e., &lt;think&gt; reasoning process here &lt;/think&gt;&lt;answer&gt; answer here &lt;/answer&gt;"</li>
+            <li><strong>System prompt variations</strong>: Alternative configurations for model instruction</li>
+        </ul>
+
+        <h2>2. Evaluation Datasets Options</h2>
+
+        <h3>2.1 COCO Dataset Evaluation Modes</h3>
+        <p><strong>COCO_filtered (COCO_pos_1) Dataset</strong><br>
+        The COCO_filtered dataset is created from the COCO dataset's instances_val2017.json file. It filters out categories with more than 10 annotation boxes, ensuring that only categories with fewer boxes are included.</p>
+
+        <p><strong>COCO_pos_2 Dataset</strong><br>
+        The COCO_pos_2 dataset focuses on images where each category has only one bounding box.</p>
+
+        <p><strong>COCO_pos_3 Dataset</strong><br>
+        The COCO_pos_3 dataset is also derived from the COCO dataset's instances_val2017.json file. It ensures that the total number of boxes across all categories does not exceed 10.</p>
+
+        <p>In the evaluation of the COCO dataset, we have 3 modes:</p>
+        <ul>
+            <li><strong>All mode</strong>: Includes all 80 categories in COCO</li>
+            <li><strong>Positive mode</strong>: Includes only categories present in the current image</li>
+            <li><strong>1bbox per category mode</strong>: Includes only one bounding box per category</li>
+        </ul>
+
+        <h3>2.2 OVD Dataset Evaluation Modes</h3>
+        <ul>
+            <li><strong>All mode</strong>: Combines both positive and negative prompts</li>
+            <li><strong>Positive mode</strong>: Includes only categories present in the image</li>
+        </ul>
+
+        <h2>3. Training Dataset Findings</h2>
+
+        <h3>3.1 Small Object Detection Trade-offs</h3>
+        <p>When training with MAP reward on small objects (area < 0.5% of image) vs. regular single-box data:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Training Data</th>
+                    <th>COCO_filtered (mAP)</th>
+                    <th>Precision (IoU=0.5)</th>
+                    <th>Recall (IoU=0.5)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Small objects only</td>
+                    <td>22.3</td>
+                    <td>71.39</td>
+                    <td>43.36</td>
+                </tr>
+                <tr>
+                    <td>Regular single-box</td>
+                    <td>21.1</td>
+                    <td>55.02</td>
+                    <td>49.46</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>Key findings:</p>
+        <ul>
+            <li>Small object training improves precision (+16.37 points)</li>
+            <li>Slight decrease in recall (-6.1 points)</li>
+            <li>Consider balanced datasets unless small object detection is a primary goal</li>
+        </ul>
+
+        <h3>3.2 Single Region Label Impact</h3>
+        <p>The descriptions of Single Region Label and OD (Object Detection):</p>
+
+        <p><strong>Single Region Label:</strong><br>
+        The Pure Single Region method takes a different approach. Instead of detecting the object and its boundaries, it relies on a given coordinate and asks the model to classify which object from a list of predefined options is located within the provided coordinates. Essentially, this is akin to a multiple-choice question, where the model is given a location (a coordinate box) in the image and must choose the correct object category from a set of possible options. This method emphasizes classification based on specific coordinates, and matches the region to the appropriate object class.</p>
+
+        <p><strong>OD (Object Detection):</strong><br>
+        The OD approach focuses on detecting the position and boundaries of an object within an image. The model identifies the object and its location by drawing bounding boxes, and performance is measured using metrics like mAP and IoU. OD not only classifies the object but also determines its position in the image.</p>
+
+        <p>Comparison of different training approaches:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Training Approach</th>
+                    <th>COCO_filtered (mAP)</th>
+                    <th>Precision (IoU=0.5)</th>
+                    <th>Recall (IoU=0.5)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Pure Single Region</td>
+                    <td>18.4</td>
+                    <td>66.01</td>
+                    <td>34.57</td>
+                </tr>
+                <tr>
+                    <td>Mixed OD + Single Region</td>
+                    <td>21.7</td>
+                    <td>63.98</td>
+                    <td>46.75</td>
+                </tr>
+                <tr>
+                    <td>Pure OD (Single class)</td>
+                    <td>23.8</td>
+                    <td>65.58</td>
+                    <td>48.92</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>Key findings:</p>
+        <ul>
+            <li>Pure Object Detection (OD) outperforms mixed approaches</li>
+            <li>Mixed datasets outperform pure single region training</li>
+            <li>Including Single Region Label data may hinder object detection performance</li>
+        </ul>
+
+        <h2>4. RL Reward Function Optimization</h2>
+
+        <h3>4.1 Comparison of Different Reward Functions</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Training data</th>
+                    <th>Reward method</th>
+                    <th>COCO_pos_3 (mAP)</th>
+                    <th>Precision (IoU=0.5)</th>
+                    <th>Recall (IoU=0.5)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>OVDEval</td>
+                    <td>AP50</td>
+                    <td>27.1</td>
+                    <td>70.17</td>
+                    <td>58.05</td>
+                </tr>
+                <tr>
+                    <td>OVDEval</td>
+                    <td>AP</td>
+                    <td>27.4</td>
+                    <td>71.11</td>
+                    <td>57.86</td>
+                </tr>
+                <tr>
+                    <td>OVDEval</td>
+                    <td>weighted_sum</td>
+                    <td>27.5</td>
+                    <td>71.32</td>
+                    <td>57.72</td>
+                </tr>
+                <tr>
+                    <td>OVDEval</td>
+                    <td>weighted_sum, cosine reward</td>
+                    <td>29.3</td>
+                    <td>76.95</td>
+                    <td>59.11</td>
+                </tr>
+                <tr>
+                    <td>OVDEval</td>
+                    <td>weighted_sum, cosine reward, repetition reward</td>
+                    <td>28.8</td>
+                    <td>77.08</td>
+                    <td>57.98</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p><strong>1. AP or AP50 For Bounding Box:</strong></p>
+        <p>In our experiments, we utilized ovdeval as the training dataset and COCO_pos_3 for validation. The average precision (AP) score improved from 27.1 to 27.4. This single comparison highlighted that AP consistently outperforms AP50. The rationale behind this is that AP50, with its binary thresholding, offers limited feedback, whereas AP provides a more granular, continuous spectrum of feedback. This continuous feedback mechanism enables the model to refine its bounding box predictions, leading to enhanced precision and overall model performance.</p>
+
+        <p><strong>2. Reward rule design</strong></p>
+        <p>During our exploration, we considered implementing a customized rule for the object detection task. The focus is primarily on two aspects: the spatial overlap between predicted and ground truth boxes, and the overall detection completeness. Spatial overlap is typically measured using the Intersection over Union (IoU), which is the ratio of the area of overlap to the area of union between two boxes. A higher IoU indicates that the predicted box is closer in spatial position to the ground truth box. In terms of detection completeness, it is important to consider both missed detections and false alarms. Missed detections refer to real targets that were not detected, while false alarms refer to non-target areas that were incorrectly detected. Completeness is assessed by calculating the miss rate and false alarm rate, with the completeness score computed as</p>
+
+        <p><em>completeness = 1 - (miss rate + false alarm rate)/2</em></p>
+
+        <p>This reflects the overall thoroughness of the detection. To form a comprehensive score, the function combines position accuracy and detection completeness through a weighted average. When matching predicted and ground truth boxes, a greedy matching strategy is employed, which involves iteratively selecting the pair of boxes with the highest IoU until no more satisfactory matches can be made. It is important to note that if the predicted label does not match the ground truth label, the IoU is set to 0, even if the IoU itself is high, affecting the final score. This multi-dimensional reward method, which is named as weighted_sum, provides a comprehensive metric to reflect the performance of object detection models. We implemented this reward metric into training and compared it to the AP reward. The results show that the weighted_sum reward can further boost the mAP score to 27.5.</p>
+
+        <p><strong>3. Cosine reward and repetition reward</strong></p>
+        <p>Inspired by the paper "Demystifying Long Chain-of-Thought Reasoning in LLMs" (<a href="https://arxiv.org/abs/2502.03373">https://arxiv.org/abs/2502.03373</a>), we implemented cosine and repetition rewards in our experiments. The cosine reward encourages a more efficient reasoning process by promoting shorter responses when a correct answer has already been reached. Conversely, for incorrect answers, the cosine reward incentivizes further exploration until the correct answer is found. This approach helps to converge the response length to a reasonable size while avoiding unnecessary reasoning.</p>
+
+        <p>In addition, we implemented a repetition reward to penalize n-gram patterns, as we observed instances of repetition when generating responses. Given that our focus is on the Object Vision Detection (OVD) task, it is likely that multiple objects are present within a single image. Therefore, we parse the OVD output JSON and calculate the n-grams based on the elements contained within it.</p>
+
+        <p>We found that the implementation of cosine and repetition rewards can converge to the same reasoning process during single training sessions. However, different training attempts may lead to the convergence of distinct reasoning patterns. Below, we present several interesting reasoning patterns observed during our experiments.</p>
+
+        <pre><code>problem: 
+ Please carefully observe the image and detect the following targets: plastic chair.Output each detected targets' bbox coordinates in JSON format. The format of the bbox coordinates is: ```json
+[{"bbox_2d": [x1, y1, x2, y2], "label": "target name"}, {"bbox_2d": [x1, y1, x2, y2], "label": "target name"}]
+```. If there are no such targets in the image, simply respond with None.
+Content: &lt;think&gt;
+4
+&lt;/think&gt;
+&lt;answer&gt;
+```json
+[
+    {"bbox_2d": [38, 95, 113, 164], "label": "plastic chair"},
+    {"bbox_2d": [130, 90, 177, 150], "label": "plastic chair"},
+    {"bbox_2d": [174, 89, 222, 140], "label": "plastic chair"},
+    {"bbox_2d": [222, 86, 258, 135], "label": "plastic chair"}
+]
+```
+&lt;/answer&gt;</code></pre>
+
+        <pre><code>problem: 
+ Please carefully observe the image and detect the following targets: iron door.Output each detected targets' bbox coordinates in JSON format. The format of the bbox coordinates is: ```json
+[{"bbox_2d": [x1, y1, x2, y2], "label": "target name"}, {"bbox_2d": [x1, y1, x2, y2], "label": "target name"}]
+```. If there are no such targets in the image, simply respond with None.
+Content: &lt;think&gt;
+image.
+&lt;/think&gt;
+&lt;answer&gt;
+```json
+[
+    {"bbox_2d": [97, 91, 406, 718], "label": "iron door"}
+]
+```
+&lt;/answer&gt;</code></pre>
+
+        <pre><code>problem: Please carefully check the image and detect the following objects: ['a fisherman standing on the shore with his body soaked in water', 'a street food truck without an umbrella', 'person covered with armor', 'woodpecker on the side of the trunk', 'unused microphone stand on stage']. Output the bbox coordinates of detected objects in &lt;answer&gt;&lt;/answer&gt;. The bbox coordinates in Markdown format should be: 
+```json
+[{"bbox_2d": [x1, y1, x2, y2], "label": "object name"}]
+```
+ If no targets are detected in the image, simply respond with "None".
+Content: &lt;think&gt;
+I carefully analyzed the image to locate specific objects.
+&lt;/think&gt;
+&lt;answer&gt;
+```json
+[{"bbox_2d": [294, 221, 542, 442], "label": "woodpecker on the side of the trunk"}]
+```
+&lt;/answer&gt;</code></pre>
+
+        <p>When we introduce the cosine reward, we noticed a notable improvement in performance, with the mAP rising to 29.3. This increase is accompanied by a significant boost in precision, which reaches 76.95, and a slight improvement in recall to 59.11. Furthermore, when we add the repetition reward to the weighted sum and cosine reward combination, the mAP slightly decreases to 28.8. While the precision remains high at 77.08, the Recall drops to 57.98. This suggests that while the repetition reward may help in reducing redundancy in predictions, it could also lead to a trade-off where the model becomes overly conservative, potentially missing out on capturing some relevant instances. The overall results indicate that the addition of cosine rewards significantly enhances the model's performance, particularly in terms of precision.</p>
+
+        <h2>5. Prompt Engineering Findings</h2>
+
+        <p>We have made a series of experiments on the 3B model with OVDEval with the following discoveries.</p>
+
+        <div class="image-container">
+            <img src="images/3b-format.png" alt="3B Format Results">
+            <p><em>Format rewards on 3B model during training</em></p>
+        </div>
+
+        <div class="image-container">
+            <img src="images/3b-accurancy.png" alt="3B Accuracy Results">
+            <p><em>Accuracy rewards on 3B model during training</em></p>
+        </div>
+
+        <h3>5.1 Impact of Minor Grammatical Issues</h3>
+        <p><strong>Even small grammatical issues (like a missing space) significantly affected training convergence and on 3B model.</strong><br>
+        At the beginning of training on the 3B model using the OVDEval data (using data with grammatical problems and standard prompt). We observed that accuracy reward did not rise as the format reward finished converging (around 15 steps), but begin to up until around 125 steps. After checking the training parameter configurations, we found that the dataset had a problem of missing spaces, we fixed this problem and tried training again. It was found that the model did speed up convergence rising at around 65 steps. However, while making the accuracy reward of the training start to rise faster, eventually converges to the same value (around 0.7).</p>
+        
+        <p><strong>Example of problematic data:</strong></p>
+
+        <div class="code-container">
+            <p><strong>Missing space data</strong></p>
+            <pre><code>&lt;image&gt;\n Please carefully observe the image and detect the following targets: person sit on motorcycle; <strong>motorcycle is sat on by person.Output each</strong> detected targets' bbox coordinates in JSON format. The format of the bbox coordinates is: \`\`\`json\n\[{\"bbox\_2d\": \[x1, y1, x2, y2\], \"label\": \"target name\"}, {\"bbox\_2d\": \[x1, y1, x2, y2\], \"label\": \"target name\"}\]\n\`\`\`. If there are no such targets in the image, simply respond with None.</code></pre>
+        </div>
+
+        <div class="code-container">
+            <p><strong>Fixed data</strong></p>
+            <pre><code>&lt;image&gt;\n Please carefully observe the image and detect the following targets: person sit on motorcycle; <strong>motorcycle is sat on by person. Output each</strong> detected targets' bbox coordinates in JSON format. The format of the bbox coordinates is: \`\`\`json\n\[{\"bbox\_2d\": \[x1, y1, x2, y2\], \"label\": \"target name\"}, {\"bbox\_2d\": \[x1, y1, x2, y2\], \"label\": \"target name\"}\]\n\`\`\`. If there are no such targets in the image, simply respond with None.</code></pre>
+        </div>
+
+        <h3>5.2 Prompt Structure Optimization</h3>
+        <p><strong>Prompt modifications can improve the efficiency of training convergence on 3B model.</strong><br>
+        Although the accuracy reward can start to converge faster (around 65 steps) after correcting the data, it still did not match the trend of the format reward (around 15 steps). We then tried to modify the prompt without changing the other training settings, and finally the accuracy reward of the training could rise immediately after the format reward finished converging (around 15 steps). The modification of the prompt still did not improve the final accuracy reward value (around 0.7) although speed of convergence increase again during training</p>
+
+        <div class="code-container">
+            <p><strong>Enhanced prompt</strong></p>
+            <pre><code>"First thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within &lt;think&gt; &lt;/think&gt; and &lt;answer&gt; &lt;/answer&gt; tags, respectively, i.e., &lt;think&gt; reasoning process here &lt;/think&gt;&lt;answer&gt; answer here &lt;/answer&gt;"</code></pre>
+        </div>
+
+        <h3>5.3 Different Robustness of 7B and 3B Model to Prompt</h3>
+        <div class="image-container">
+            <img src="images/7b-format.png" alt="7B Format Results">
+            <p><em>Format rewards on 7B model during training</em></p>
+        </div>
+
+        <div class="image-container">
+            <img src="images/7b-acc.png" alt="7B Accuracy Results">
+            <p><em>Accuracy rewards on 7B model during training</em></p>
+        </div>
+
+        <p><strong>The 7B model is more robust to the prompt which brings stronger initial format adherence</strong><br>
+        We tried the same experiment (fixed data and use enhanced prompt) on model 7B as we did on model 3B, and it turns out that the training rewards is almost the same. The accuracy reward going up along with the format reward right at the beginning. This reflects the fact that unlike the 3B model whose training performance may change significantly with minor adjustments to prompt, the 7B model exhibits relatively low sensitivity to cue modifications due to its stronger generalization ability and higher parameter capacity. This is also shown in that 7B models has stronger initial format adherence (0.75 initial format score) compared to 3B models (0.4)</p>
+
+        <h3>5.3 System Prompt Variations</h3>
+        <p><strong>For instruct models, system prompts had minimal effect on format learning</strong><br>
+        We additionally tried training with the enhanced prompt passed in as a build-in system prompt, and found that the format rewards barely increased, which validates the point made in "MM-Eureka: Exploring Visual Aha Moment with Rule-based Large-scale Reinforcement Learning" (<a href="https://arxiv.org/abs/2503.07365">https://arxiv.org/abs/2503.07365</a>): for the instruct model, which should have retained the model's built-in system prompt and included format-related information in the user prompt. In contrast, for the base model, we should provide format information in the system prompt.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>COCO_pos_1 (mAP)</th>
+                    <th>Precision (IoU=0.5)</th>
+                    <th>Recall (IoU=0.5)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>3B base (Qwen2.5-VL-3B-Instruct)</td>
+                    <td>23.6</td>
+                    <td>70.14</td>
+                    <td>47.69</td>
+                </tr>
+                <tr>
+                    <td>3B (fixed data & enhanced prompt)</td>
+                    <td>24.5</td>
+                    <td>68.2</td>
+                    <td>50.27</td>
+                </tr>
+                <tr>
+                    <td>7B base (Qwen2.5-VL-7B-Instruct)</td>
+                    <td>24.6</td>
+                    <td>71.53</td>
+                    <td>50.56</td>
+                </tr>
+                <tr>
+                    <td>7B (fixed data & enhanced prompt)</td>
+                    <td>24.6</td>
+                    <td>68.1</td>
+                    <td>55.15</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>We finally evaluated our models on COCO pos1. The 7B model did not show any improvement on mAP, while 3B model gained some improvement, so perhaps using the same data (OCDEval), the 3B model with a smaller training parameters might be able to achieve more improvement compared to the 7B with a stronger base capability.</p>
+
+        <p>However, all of the above findings were obtained by training on the OVDEval dataset, and perhaps its data characteristics may have some impact. In the future, we will try to continue the experiments on other datasets (e.g., <strong>D³</strong>) to verify these findings.</p>
+
+        <h2>6. RL vs SFT Training Comparison</h2>
+
+        <h3>6.1 Basic Performance Comparison</h3>
+        <p>We conducted an initial comparison between basic Reinforcement Learning (RL) and Supervised Fine-Tuning (SFT) approaches using identical training data (COCO) and base models (Qwen2.5-VL-3B). In this comparison, we utilized the MAP reward for reinforcement learning. Note that these results reflect basic RL implementation without advanced techniques like KL-divergence adjustment (KL=0) or output length control rewards that were explored later.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Training Method</th>
+                    <th>REFCOCO</th>
+                    <th>REFGTA</th>
+                    <th>COCO_filtered (mAP)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Base (Qwen2.5-VL-3B)</td>
+                    <td>73.73</td>
+                    <td>71.8</td>
+                    <td>23.7</td>
+                </tr>
+                <tr>
+                    <td>Basic RL Training</td>
+                    <td>73.87</td>
+                    <td>67.4</td>
+                    <td>23.5</td>
+                </tr>
+                <tr>
+                    <td>SFT Training</td>
+                    <td>83.20</td>
+                    <td>70.4</td>
+                    <td>25.5</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>Note: These initial results showed SFT outperforming basic RL without advanced techniques. Later experiments with optimized RL rewards showed substantial improvements over these baseline RL results.</p>
+
+        <h3>6.2 Token Generation Analysis</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Min Tokens</th>
+                    <th>Max Tokens (excluding ≥3000)</th>
+                    <th>Average Tokens (excluding ≥3000)</th>
+                    <th>Records with Tokens ≥3000</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Base Model</td>
+                    <td>34</td>
+                    <td>1892</td>
+                    <td>139.752</td>
+                    <td>281</td>
+                </tr>
+                <tr>
+                    <td>RL Model</td>
+                    <td>79</td>
+                    <td>2999</td>
+                    <td>240.563</td>
+                    <td>534</td>
+                </tr>
+                <tr>
+                    <td>SFT Model</td>
+                    <td>48</td>
+                    <td>2999</td>
+                    <td>192.259</td>
+                    <td>238</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>Key observation: SFT-trained models tend to be more concise in their outputs while maintaining better performance. RL with MAP rewards tended to generate more verbose outputs, potentially "hacking" the reward by generating more bounding boxes.</p>
+
+        <h2>7. Other Implementation Findings</h2>
+
+        <h3>7.1 Trainer Consistency Verification</h3>
+        <p>Multiple implementations were tested for consistency:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Code Version</th>
+                    <th>SuperCLEVR Test Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Old Version [734e46]</td>
+                    <td>85</td>
+                </tr>
+                <tr>
+                    <td>New Version [a301eb]</td>
+                    <td>87</td>
+                </tr>
+                <tr>
+                    <td>VLLM Version [85d9f4]</td>
+                    <td>87</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>All implementations showed consistent performance, validating the codebase's stability.</p>
+
+        <h3>7.2 Model Size Impact (3B vs 7B)</h3>
+        <p>Performance comparison on OVDEVAL:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>OVDEval Avg (mAP)</th>
+                    <th>Proper Noun Avg</th>
+                    <th>Attribute Avg</th>
+                    <th>Position</th>
+                    <th>Relationship</th>
+                    <th>Negation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>7B Best</td>
+                    <td>45.27</td>
+                    <td>53.33</td>
+                    <td>25.10</td>
+                    <td>65.4</td>
+                    <td>26.1</td>
+                    <td>56.4</td>
+                </tr>
+                <tr>
+                    <td>3B Best</td>
+                    <td>43.43</td>
+                    <td>51.87</td>
+                    <td>24.70</td>
+                    <td>63.1</td>
+                    <td>26.6</td>
+                    <td>50.9</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>7B models generally performed slightly better, though the difference was not dramatic. The 7B model had particular advantages on negation tasks.</p>
+
+        <h3>7.3 Completion Length and Batch Size</h3>
+        <ul>
+            <li>Increasing maximum completion length to 2048 while reducing batch size did not yield significant improvements</li>
+            <li>The original configuration (maximum length 1024, larger batch size) performed better in terms of processing efficiency and response quality</li>
+        </ul>
+
+        <h2>8. Key Takeaways and Best Practices</h2>
+
+        <h3>Training Methodology</h3>
+        <ul>
+            <li>Well-tuned RL (especially with cosine rewards) can outperform SFT</li>
+            <li>Basic RL without careful reward engineering may underperform SFT</li>
+        </ul>
+
+        <h3>Data Preparation</h3>
+        <ul>
+            <li>Prioritize single-class, single-box object detection training data</li>
+            <li>Consider the precision-recall trade-offs when training on small objects</li>
+            <li>Avoid pure single region label training for object detection tasks</li>
+        </ul>
+
+        <h3>Reward Selection</h3>
+        <ul>
+            <li>Use AP over AP50 for more granular feedback</li>
+            <li>weighted_sum with cosine reward provides the best performance</li>
+            <li>Be cautious with repetition rewards as they may reduce recall</li>
+        </ul>
+
+        <h3>Prompt Engineering</h3>
+        <ul>
+            <li>Even minor grammatical issues can impact training convergence</li>
+            <li>Well-structured prompts can significantly accelerate training</li>
+            <li>Keep structured thinking processes in prompts</li>
+            <li>7B models are less sensitive to prompt formatting than 3B models</li>
+        </ul>
+
+        <h3>Implementation</h3>
+        <ul>
+            <li>Code implementations are stable across versions</li>
+            <li>VLLM can be safely used as an alternative implementation for faster generation</li>
+        </ul>
+
+
+        <h2> Future Research Directions </h2>
+        <ul>
+            <li>Investigate optimal mixing ratios for multi-task training</li>
+            <li>Develop improved reward functions for RL training</li>
+            <li>Research methods to better handle small object detection without precision loss</li>
+        </ul>
+        <p>We continue to explore new approaches and welcome community feedback and contributions.</p>
