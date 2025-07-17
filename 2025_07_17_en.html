@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmAgent - A Reinforcement Learning-based Multimodal Agent Framework</title>
+    <style>
+        table {
+            font-size: 0.95em;
+        }
+        table td:first-child, table th:first-child {
+            white-space: nowrap;
+        }
+    </style>
+    <link rel="stylesheet" href="css/blog-styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">Back to Blog Index</a>
+    </nav>
+    
+    <header>
+        <h1>OmAgent - A Reinforcement Learning-based Multimodal Agent Framework</h1>
+        <p><em>Published on July 17, 2025</em></p>
+    </header>
+
+    <main>
+        <h2>1. Introduction</h2>
+        <p>With the rapid advancement of Large Language Models (LLMs) and Vision Language Models (VLMs), AI technology is shifting from exam-oriented task completion to practical scenario-based complex problem-solving. Using LLMs and VLMs to tackle more realistic and intricate problems—rather than simply passing exams—is not only an inevitable direction of technological evolution but also a key requirement for industrial applications. Meanwhile, the wave of AI agents driven by LLMs continues to expand AI’s application boundaries in the physical world: from GUI-based online shopping operations to physically embodied robots performing household chores. Enabling agents to perceive environments, plan, make decisions, and interact like humans has become a shared challenge for academia and industry.</p>
+        <p>What users truly need are general-purpose agents capable of delivering results and completing tangible tasks in the physical world. Guided by this goal, we focus on exploring a practical technical roadmap: building AI agents that can solve various problems in the physical world, deployable on devices as the core brain component. In the future, devices such as smartphones, cameras, robots, and drones are expected to become <strong>embodied AI agents</strong>, and be applied to diverse fields like industrial management, medical diagnosis, personal assistance, and media creation. To realize such embodied AI agents, four core capabilities must be achieved: visual perception, decision-making & execution, semantic interaction, and spatiotemporal memory. Among these, semantic interaction has been initially addressed by current LLMs, and the other three remain as challenges and opportunities for technological innovation. In February of this year, we released the reinforcement learning-driven VLM-R1 model and received widespread attention. By extending DeepSeek’s reasoning capabilities from natural language to vision-language scenarios, we validated the effectiveness of using reinforcement learning to enhance VLM’s visual perception and complex environmental reasoning abilities. Recently, we further expanded this to the field of decision-making & execution and, combined with a multimodal agent framework, launched the first embodied AI agent—<strong>OmAgent, a reinforcement learning-based multimodal agent framework</strong>. Its feasibility has been verified in practical applications.</p>
+        <div class="image-container">
+            <img src="images/0717/roadmap_en.png" alt="OmAgent Roadmap">
+        </div>
+
+        <h2>2. Method</h2>
+        <p>OmAgent is a reinforcement learning-based multimodal agent framework. The core philosophy of this framework is simplifying complexity through abstraction. It encapsulates complex engineering implementations (such as spatiotemporal memory management, workflow orchestration, task queues, and node optimization) in the background, providing developers with a highly streamlined and user-friendly Python interface. It features the following characteristics:</p>
+        <div class="image-container">
+            <img src="images/0717/OPS5.png" alt="OmAgent Architecture">
+        </div>
+        <h3>Native Multimodal Support</h3>
+        <ul>
+            <li><strong>VLM Model Integration</strong>: Built-in support for mainstream VLMs, including Qwen2.5-VL, LLaVA, InternVL, etc.</li>
+            <li><strong>Video Processing Capability</strong>: Natively supports video input and processing for video understanding and analysis.</li>
+            <li><strong>Mobile Device Connectivity</strong>: Enables seamless integration with mobile devices for cross-platform agent deployment.</li>
+        </ul>
+        <h3>Reusable Component Abstraction</h3>
+        <ul>
+            <li><strong>Modular Design</strong>: Develop complex agents using basic components to improve development efficiency.</li>
+            <li><strong>Component Library Ecosystem</strong>: A rich set of pre-built components covering common AI task scenarios.</li>
+            <li><strong>Custom Extensibility</strong>: Flexible extension mechanisms supporting developer-defined components.</li>
+        </ul>
+        <h3>Zero-Complexity Development Experience</h3>
+        <ul>
+            <li><strong>Concise API Design</strong>: Avoids the heavy developing overhead.</li>
+            <li><strong>Automated Engineering</strong>: Automatically handles complex engineering implementation details in the background.</li>
+            <li><strong>Rapid Prototyping</strong>: Transforms ideas into prototypes with just a few lines of code.</li>
+        </ul>
+        <p>OmAgent serves as a core component for smart devices. With multimodal support and zero-complexity development, it can be easily applied to various devices. Additionally, built-in basic algorithm modules and toolkits enable rapid resolution of challenges related to environmental perception, interaction, decision-making & execution, and memory storage. To meet the requirements for visual perception and decision-making capabilities, we integrate reinforcement learning models into OmAgent, enabling devices to maintain robust environmental perception and effective decision-making in dynamically complex environments.</p>
+
+        <h3>2.1 Breaking Through Visual Perception Capabilities – Reinforcement Learning-Driven Advanced Environmental Perception</h3>
+        <p>Our technical expertise in visual perception dates back to the release of the OmDet model series in 2021. Through multiple iterations, the model evolved from early attribute and relation-based general perception and detection capabilities to an efficient recognition mode driven by natural language instructions. Combined with lightweight training and deployment solutions, OmDet achieves open-domain detection and understanding of the surrounding environment. In 2023, we launched OmChat, continuously enhancing its perception and interaction capabilities in vision-language hybrid environments. In early 2025, leveraging technical breakthroughs from DeepSeek, we successfully introduced reinforcement learning into VLMs, and released the VLM-R1. VLM-R1 significantly outperforms traditional supervised learning methods in various visual perception tasks such as object detection, marking a similar aha moment of cognitive breakthrough in the visual domain. Notably, through training and validation across multiple tasks, our reinforcement learning-based OmR1 model demonstrates excellent generalization in cross-task scenarios, providing flexible technical support for visual perception and decision-making in complex environments.</p>
+        <div class="image-container">
+            <img src="images/0717/vlm-r1.png" alt="VLM-R1 Technical Innovations">
+        </div>
+        <p>VLM-R1 core technical innovations include:</p>
+        <ul>
+            <li><strong>GRPO Algorithm Integration:</strong>
+                <ul>
+                    <li>Comprehensive integration: Full support for the GRPO algorithm in VLM models.</li>
+                    <li>Hyperparameter control: Easy control over all training hyperparameters.</li>
+                    <li>Stable training: Achieves stable RL training through predefined and customized reward design.</li>
+                    <li>Model compatibility: Supports training of VLM models of different scales, from 3B to 72B models.</li>
+                </ul>
+            </li>
+            <li><strong>Parameter-Efficient Training:</strong>
+                <ul>
+                    <li>LoRA technology: Supports LoRA-based efficient training, which is suitable to resource-constrained cases.</li>
+                    <li>Multi-node training: Enables distributed training across multiple GPUs or server nodes.</li>
+                    <li>Efficient training: Optimizes memory usage and training speed.</li>
+                </ul>
+            </li>
+            <li><strong>Multimodal Data Processing:</strong>
+                <ul>
+                    <li>Multimodal training: Supports simultaneous training on image-text and pure text datasets.</li>
+                    <li>Dynamic batching: Batch processing strategies to improve training efficiency.</li>
+                </ul>
+            </li>
+            <li><strong>Multi-Task Support:</strong>
+                <ul>
+                    <li>REC tasks: Specialized reward design for Referring Expression Comprehension tasks.</li>
+                    <li>OVD tasks: We also defined the reward function for Open-Vocabulary Detection tasks.</li>
+                    <li>Extensibility: Supports custom reward functions for different tasks.</li>
+                </ul>
+            </li>
+        </ul>
+        <p>In our research, we observed the emergence of "OD aha moment" in VLMs—an intelligent behavior spontaneously developed during reinforcement learning training:</p>
+        <ul>
+            <li>Internal validation mechanism: The model conducts internal thinking and validation before outputting detection results.</li>
+            <li>Two-step reasoning process: The model emergently exhibits to first filter irrelevant objects and then perform precise object detection.</li>
+        </ul>
+
+        <h3>2.2 Embodied Intelligent Decision-Making & Execution – Simulating Human-Environment Interaction</h3>
+        <p>Autonomous decision-making and execution based on environmental perception are the second major challenge in embodied intelligence. In the OmAgent framework, besides relying on VLM models for task decomposition, planning, and calling basic capabilities like MCP, we further simulate the logic of human interaction with the external environment and innovatively propose the ZoomEye algorithm—designed to enhance VLM’s interaction capabilities in high-resolution environments. Its core idea is to replicate humans’ zooming behavior when observing environments: just as human eyes first scan the overall scene and then focus on details, the model can progressively explore and deeply analyze key information in the environment through similar step-by-step exploration. Its core innovations include:</p>
+        <ul>
+            <li><strong>Tree-Structured Image Processing:</strong>
+                <ul>
+                    <li>Hierarchical image modeling: Represents images as a tree structure, where the root node denotes the entire image, and child nodes represent zoomed sub-regions of parent nodes.</li>
+                    <li>Recursive segmentation strategy: Recursively splits images into four equally sized sub-regions based on preset resolution constraints.</li>
+                    <li>Depth control mechanism: Controls zoom levels through node depth, enabling progressive exploration from global to local.</li>
+                    <li>Error recovery mechanism: Equipped with capabilities to handle recovery from search failures.</li>
+                </ul>
+            </li>
+            <li><strong>Human Vision Simulation:</strong>
+                <ul>
+                    <li>Zooming behavior simulation: Simulates the zoom-in and zoom-out operations in human visual observation.</li>
+                    <li>Attention guidance: Guides the search process based on visual cues, focusing on relevant regions.</li>
+                    <li>Backtracking mechanism: Supports returning to the previous view from the current view to explore other regions of interest.</li>
+                    <li>Resolution adaptation: Automatically adapts to images with different input resolutions.</li>
+                </ul>
+            </li>
+            <li><strong>Confidence Evaluation System:</strong>
+                <ul>
+                    <li>Existing Confidence: Evaluates the probability of the target object existing in the current view.</li>
+                    <li>Latent Confidence: Assesses the possibility of discovering the target object through further zooming.</li>
+                    <li>Answering Confidence: Evaluates whether current visual information is sufficient to answer the question.</li>
+                </ul>
+            </li>
+        </ul>
+        <div class="image-container">
+            <img src="images/0717/zoomeye.png" alt="ZoomEye Tree Search Algorithm" style="max-width:600px;width:100%;height:auto;">
+        </div>
+
+        <h2>3. Performance Evaluation of OmAgent in Industrial Applications</h2>
+        <p>To verify the practical performance of OmAgent, we conducted comparative tests between OmAgent and mainstream VLMs on three industrial scenarios—open detection, visual cognition (complex event detection), and doc parsing (complex multimedia document understanding)—using a hardware environment equipped with 8 × 80G A100 GPUs.</p>
+        <div class="image-container">
+            <img src="images/0717/performance.png" alt="Industry Evaluation Comparison">
+        </div>
+        <h3>Open Detection Scenario</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Vendor</th>
+                    <th>mAP</th>
+                    <th>Latency (s/frame)</th>
+                    <th>QPS</th>
+                    <th>Cost (RMB/1000 frames)</th>
+                    <th>Avg Output Tokens</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>OmDet (1B)</strong></td><td><strong>Om AI</strong></td><td><strong>30.80</strong></td><td><strong>0.01</strong></td><td><strong>800</strong></td><td><strong>0.02</strong></td><td>-</td></tr>
+                <tr><td><strong>OmR1 (3B)</strong></td><td><strong>Om AI</strong></td><td><strong>34.81</strong></td><td><strong>1.51</strong></td><td><strong>45.73</strong></td><td><strong>0.42</strong></td><td><strong>149.25</strong></td></tr>
+                <tr><td>GPT-4o</td><td>OpenAI</td><td>1.26</td><td>2.73</td><td>4.81</td><td>16.5</td><td>58.67</td></tr>
+                <tr><td>Qwen2.5VL-32B</td><td>Alibaba</td><td>32.30</td><td>3.31</td><td>9.68</td><td>1.99</td><td>127.39</td></tr>
+            </tbody>
+        </table>
+        <p>In the performance evaluation of open detection tasks, we used OVDEval as the evaluation dataset, which covers diverse general detection capabilities in open scenarios, including object attributes, small objects, and non-existent objects. First, as our ultra-lightweight solution, OmDet achieves an excellent 30.80 mAP with only 1B parameters, while achieving a latency of 0.01 seconds and QPS up to 800, providing an efficient solution for real-time scenarios. By introducing reinforcement learning into VLM models, OmR1 can recognize more complex objects and categories through reasoning, reaching 34.81 mAP—significantly outperforming other models and verifying the potential of reinforcement learning in VLMs. Another notable achievement is our breakthrough in cost control: OmDet’s processing cost is only 0.02 yuan per 1000 frames, 825 times lower than that of GPT-4o.  OmR1 with a 3B model size, is 38 times lower in cost compared to GPT-4o.</p>
+
+        <h3>Complex Event Judgment</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Vendor</th>
+                    <th>Precision</th>
+                    <th>Latency (s/frame)</th>
+                    <th>QPS</th>
+                    <th>Cost (RMB/1000 frames)</th>
+                    <th>Avg Output Tokens</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>OmR1 (3B)</strong></td><td><strong>Om AI</strong></td><td><strong>80.74%</strong></td><td><strong>3.02</strong></td><td><strong>6.56</strong></td><td><strong>2.94</strong></td><td><strong>174.45</strong></td></tr>
+                <tr><td>Qwen2.5VL-32B</td><td>Alibaba</td><td>74.01%</td><td>3.77</td><td>2.08</td><td>8.46</td><td>31.38</td></tr>
+                <tr><td>GPT-4o</td><td>OpenAI</td><td>67.29%</td><td>4.68</td><td>4.09</td><td>28.4</td><td>32.68</td></tr>
+            </tbody>
+        </table>
+        <p>Visual cognition (complex event detection) is a general judgment model for surveillance scenarios, focusing on intelligent analysis tasks across different environments. In this task, users can customize complex management rules for different cases and flexibly define complex abnormal events through instructions. The built-in model agent should conduct environment understanding, anomaly analysis, and accurately mark abnormal areas in images based on these definitions. In this industrial application, the reinforcement learning-based OmR1 model also performs excellently. OmR1 achieves 80.74% precision, significantly outperforming other larger models. Through reasoning, OmR1 outputs an average of 174.45 tokens, enabling more detailed and in-depth analysis in complex reasoning processes. From a cost-effectiveness perspective, OmR1 reduces processing costs by nearly 90% compared to GPT-4o, demonstrating strong practical value in real-world applications.</p>
+
+        <h3>Complex Multimedia Document Understanding</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Model</th>
+                    <th>Vendor</th>
+                    <th>Accuracy</th>
+                    <th>Latency (s/page)</th>
+                    <th>QPS</th>
+                    <th>Cost (RMB/1000 pages)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>OmDoc (1B)</strong></td><td><strong>Om AI</strong></td><td><strong>77.83%</strong></td><td><strong>0.27</strong></td><td><strong>299.2</strong></td><td><strong>0.06</strong></td></tr>
+                <tr><td>Qwen2.5VL-32B</td><td>Alibaba</td><td>74.40%</td><td>4.56</td><td>3.71</td><td>5.19</td></tr>
+                <tr><td>GPT-4o</td><td>OpenAI</td><td>76.46%</td><td>8.16</td><td>0.836</td><td>71.2</td></tr>
+            </tbody>
+        </table>
+        <p>Doc parsing (complex multimedia document understanding) tasks focus on parsing, memory storage, and question answering for long documents with complex structural relationships, including tables, figures and charts. OmDoc, our document agent application, demonstrates significant technical advantages. In terms of performance, OmDoc achieves 77.83% accuracy, outperforming other larger models, while maintaining high precision and leading performance across the board. In terms of efficiency, OmDoc controls processing latency to 0.27 seconds, 17 times faster than Qwen2.5VL-32B and 30 times faster than GPT-4o. This millisecond-level response speed provides a solid technical foundation for real-time document analysis applications. In terms of throughput performance, OmDoc reaches a QPS of 299.2, offering strong technical support for large-scale batch processing scenarios. Most notably, OmDoc excels in cost control, with a processing cost of only 0.06 yuan per 1000 pages—1187 times lower than GPT-4o’s 71.2 yuan per 1000 pages.</p>
+
+        <h2>4. Open-Source Contributions</h2>
+        <p>We have fully opened our core technology system to the open-source community, receiving enthusiastic responses with over 9K stars accumulated on GitHub:</p>
+        <ul>
+            <li>VLM-R1 Reinforcement Learning Framework: <a href="https://github.com/om-ai-lab/VLM-R1" target="_blank">https://github.com/om-ai-lab/VLM-R1</a></li>
+            <li>ZoomEye Tree Search Algorithm: <a href="https://github.com/om-ai-lab/ZoomEye" target="_blank">https://github.com/om-ai-lab/ZoomEye</a></li>
+            <li>OmAgent Multimodal Agent Framework: <a href="https://github.com/om-ai-lab/OmAgent" target="_blank">https://github.com/om-ai-lab/OmAgent</a></li>
+            <li>OmDet Open Visual Perception: <a href="https://github.com/om-ai-lab/OmDet" target="_blank">https://github.com/om-ai-lab/OmDet</a></li>
+            <li>OmChat Vision-Language Interaction: <a href="https://github.com/om-ai-lab/OmChat" target="_blank">https://github.com/om-ai-lab/OmChat</a></li>
+        </ul>
+
+        <h2>5. Future Directions</h2>
+        <p>The evolution of smart devices is never straightforward and a single model cannot solve; it must balance environmental complexity, task diversity, and interaction relevance. Our vision is to inject a complete intelligent persona into every future smart device, with OmAgent as the technical core. We look forward to seeing all devices in the physical world break through their current functional boundaries, transforming into embodied agents capable of autonomous perception, proactive decision-making, and continuous evolution. Let agents play a vital role in various fields such as industrial safety management and medical diagnosis, enabling AI to step out of data centers, deeply integrate into the physical world, and become a core driver of industrial upgrading and life transformation.</p>
+        <p><em>For more technical details and open-source projects, please visit: <a href="https://github.com/om-ai-lab" target="_blank">Om AI Lab GitHub</a></em></p>
+        <p><em>For technical exchanges and cooperation, please contact us.</em></p>
+    </main>
+</body>
+</html> 
