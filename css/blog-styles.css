@@ -24,6 +24,11 @@ nav a:hover {
     text-decoration: underline;
 }
 
+.nav-separator {
+    color: #999;
+    margin: 0 10px;
+}
+
 /* Header */
 header {
     margin-bottom: 40px;
@@ -313,4 +318,4 @@ a:hover {
     .blog-content th {
       background-color: #2d3748;
     }
-  } 
+  }

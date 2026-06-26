@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX-Flow: Continuous Video Understanding for Real-Time Multimodal Interaction</title>
+    <meta name="description" content="VLX-Flow is a streaming video understanding framework that turns continuous video input into reusable model memory for low-latency multimodal interaction.">
+    <link rel="canonical" href="https://om-ai-lab.github.io/2026_06_26_vlx_flow_en.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://om-ai-lab.github.io/2026_06_26_vlx_flow_zh.html">
+    <link rel="alternate" hreflang="en" href="https://om-ai-lab.github.io/2026_06_26_vlx_flow_en.html">
+    <meta property="og:title" content="VLX-Flow: Continuous Video Understanding for Real-Time Multimodal Interaction">
+    <meta property="og:description" content="VLX-Flow turns streaming video into reusable model memory with visual cache, semantic memory, and low-latency interaction.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://om-ai-lab.github.io/2026_06_26_vlx_flow_en.html">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-flow/vlx-flow-overview.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/blog-styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">Back to Blog Index</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_06_26_vlx_flow_zh.html" lang="zh-CN">中文</a>
+        <span class="nav-separator">·</span>
+        <a href="https://github.com/om-ai-lab/VLX-Flow">GitHub</a>
+        <span class="nav-separator">·</span>
+        <a href="https://huggingface.co/omlab">Hugging Face</a>
+    </nav>
+
+    <header>
+        <h1>VLX-Flow: Continuous Video Understanding for Real-Time Multimodal Interaction</h1>
+        <p><em>Published on June 26, 2026</em></p>
+    </header>
+
+    <main>
+        <h2>Introduction</h2>
+        <p>Most video models start watching only after a user asks a question. Real devices do not work that way: cameras keep recording, robots keep moving, screens keep changing, and queries can arrive at any time. A model for these scenarios should not wait until a query arrives before it begins to understand the scene.</p>
+        <p>VLX-Flow is designed for this online setting. It processes video as a sequence of streaming chunks, updates model memory incrementally, and answers from the maintained state instead of reprocessing the entire video history for every interaction.</p>
+
+        <p>Many video understanding systems still assume an offline workflow: collect the video first, sample or encode it, then ask the model to reason over the resulting frames. That works for many benchmark-style tasks, but live environments require something different. The harder problem is whether a model can maintain an evolving visual state as the world changes. VLX-Flow treats video understanding as a continuous process. New chunks are absorbed as they arrive, internal memory is updated during inference, and later questions are answered from this accumulated state.</p>
+
+        <h2>From Offline Video QA to Streaming Understanding</h2>
+        <p>The core question behind VLX-Flow is: <strong>how can a multimodal model keep understanding a video stream, rather than starting from zero only after a user asks a question?</strong></p>
+        <p>Most video VLMs are built around one of two input strategies. <strong>Full-frame input</strong> feeds many frames from the whole video into the model at once. It preserves more information, but it is expensive, high-latency, and difficult to scale to long streams. <strong>Fixed sampling</strong> is cheaper, but it only gives the model sparse snapshots. Important actions can easily fall between sampled frames. If a person picks up a cup between two samples, the model may see the before and after states but miss the action itself.</p>
+        <p>Both approaches are useful, but they are still fundamentally offline. The model begins to process the video after the request is made. For cameras, robots, screen recordings, and edge devices, this creates a mismatch: the video is continuous, but the model's understanding happens in disconnected bursts.</p>
+
+        <div class="image-container">
+            <img src="images/vlx-flow/vlx-flow-overview.png" alt="VLX-Flow overview: streaming chunks, visual cache, semantic memory, and low-latency interaction">
+        </div>
+
+        <h3>Streaming Input: Turning Video into Model State</h3>
+        <p>VLX-Flow presents video to the model as a stream rather than a single static request. The stream is divided into short, consecutive chunks, and each chunk is processed in temporal order. The visual encoder converts the new frames into model-readable features, while the language model maintains a reusable internal state.</p>
+        <p>When a new chunk arrives, VLX-Flow updates this state instead of rebuilding the full context. Past information is neither discarded nor allowed to grow into an unbounded raw history. It is <strong>compressed into state rather than copied as history</strong>.</p>
+        <p>Consider a simple event: a person picks up a cup, walks toward a door, and later places the cup on a table. Sparse sampling may only capture isolated snapshots. VLX-Flow is designed to preserve the event chain across chunks, so a later question such as "What did the person put on the table?" can be answered from the maintained state.</p>
+
+        <h3>Two-Layer Memory for Online Interaction</h3>
+        <p>The language model uses <strong>Linear Attention</strong> components. With standard self-attention, longer sequences require a growing KV cache, so memory and computation increase as the stream gets longer. Linear Attention can carry history through a recurrent state and update it incrementally, giving the model a natural mechanism for stream-oriented inference.</p>
+        <p>This gives VLX-Flow two practical advantages:</p>
+        <ul>
+            <li><strong>More stable latency</strong>: the model does not need to recompute the entire history for every new interaction.</li>
+            <li><strong>Smoother memory growth</strong>: long streams can preserve semantic continuity without letting historical context grow without bound.</li>
+        </ul>
+        <p>VLX-Flow builds on this with two complementary memory layers. The <strong>visual cache</strong> keeps recent visual details such as actions, object positions, and short-term scene changes. The <strong>semantic memory</strong> stores higher-level context, including streaming descriptions, user questions, model answers, and dialogue context. The visual cache protects short-term detail; the semantic memory keeps the longer narrative coherent.</p>
+        <p>For multi-turn interaction, this memory cannot be treated as a simple text transcript. When text history is merged, trimmed, or replayed, VLX-Flow synchronizes the model's internal cache so that the visible conversation and the actual model state do not drift apart.</p>
+
+        <div class="image-container">
+            <img src="images/vlx-flow/ttft-comparison.png?v=bc7a4280" alt="First-token latency comparison among Full Attention, SlideWindow, and VLX-Flow">
+            <p>Time to first token (TTFT) as the number of input images increases. Full Attention (orange) rises steadily as the historical context grows. SlideWindow (green) limits history with window resets, producing a rise-reset-rise pattern. VLX-Flow (red) compresses history through its two-layer memory mechanism, keeping TTFT low and stable over long sequences.</p>
+        </div>
+
+        <h3>Observe First, Ask Later</h3>
+        <p>One core capability of VLX-Flow is <strong>continuous video description</strong>. The generated descriptions are not isolated single-frame descriptions. They act as semantic memory for streaming inference. As video flows in, the model records useful information about the scene, subjects, actions, object states, and camera changes. Each description continues from the previous state rather than starting over.</p>
+        <p>We formulate this as a streaming understanding data format. A short video window is divided into chronological chunks, and each chunk is paired with a concise, visually grounded streaming description. Later, a question is introduced, and the model must answer from the memory it has accumulated so far rather than going back to rewatch the video.</p>
+        <p>This separates <strong>observation</strong> from <strong>answering</strong>. Instead of static segment-level supervision, the supervision becomes recursive over time: streaming descriptions teach the model how to compress visual history, while question answering tests whether that memory can support reasoning.</p>
+        <p>This supports several online video workflows:</p>
+        <ul>
+            <li><strong>Real-time video question answering</strong>: users can ask questions while a video is playing or a camera is running, such as "How many people are in the scene?" or "Who just left?" The model answers from the maintained streaming context.</li>
+            <li><strong>Event-triggered interaction</strong>: the system can monitor conditions such as a person entering, an object being left behind, or an anomalous action, and generate an alert when the maintained state satisfies the trigger.</li>
+        </ul>
+
+        <h2>Engineering Value: Continuous Understanding at the Edge</h2>
+        <p>From an engineering perspective, VLX-Flow changes video understanding from a <strong>request-based API</strong> into a <strong>continuously running perception module</strong>. If every question requires uploading video to the cloud and reanalyzing the full history, the system pays a combined price in bandwidth, latency, privacy exposure, and compute cost.</p>
+        <p>VLX-Flow is a better fit for on-device and edge scenarios. Video streams can be encoded locally, memory can be updated incrementally, and language generation only needs to run when the system must answer a question, trigger an alert, or produce structured output.</p>
+        <p>A camera does not look at the world once every five seconds. It is always watching. Models built for real devices should work the same way. VLX-Flow is about making video usable as a live, long-lived model context, not just as another uploaded file.</p>
+        <p><em>For more technical details and open-source projects, please visit: <a href="https://github.com/om-ai-lab/VLX-Flow">om-ai-lab/VLX-Flow</a>.</em></p>
+    </main>
+</body>
+</html>

@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Om AI Lab Blogs</title>
-    <link rel="stylesheet" href="css/index-styles.css">
+    <meta name="description" content="Official Om AI Lab blog index, including VLX-Flow technical articles and project updates.">
+    <link rel="canonical" href="https://om-ai-lab.github.io/">
+    <meta property="og:title" content="Om AI Lab Blogs">
+    <meta property="og:description" content="Official Om AI Lab blog index, including VLX-Flow technical articles and project updates.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://om-ai-lab.github.io/">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-flow/vlx-flow-overview.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/index-styles.css?v=title-compact">
 </head>
 <body>
     <header>
@@ -12,13 +20,44 @@
             <img src="images/OmAI-logo.v2.png" alt="OmAI Lab Logo" class="lab-logo">
             <div class="header-text">
                 <h1>Om AI Lab Blogs</h1>
-                <!-- <p>Official blog for the <a href="https://github.com/om-ai-lab/VLM-R1">VLM-R1 project</a> - Solving Visual Understanding with Reinforced VLMs</p> -->
             </div>
         </div>
+        <nav class="resource-links" aria-label="Om AI Lab resources">
+            <a class="resource-link github-link" href="https://github.com/om-ai-lab" target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true">💻</span>
+                <span>GitHub</span>
+            </a>
+            <a class="resource-link huggingface-link" href="https://huggingface.co/omlab" target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true">🤗</span>
+                <span>Hugging Face</span>
+            </a>
+            <a class="resource-link x-link" href="https://x.com/OmAI_lab" target="_blank" rel="noopener noreferrer">
+                <span aria-hidden="true">𝕏</span>
+                <span>@OmAI_lab</span>
+            </a>
+        </nav>
     </header>
 
     <main>
         <ul class="blog-list">
+            <li>
+                <img src="images/vlx-flow/vlx-flow-overview.png" alt="VLX-Flow Overview" class="blog-image">
+                <div class="blog-content">
+                    <span class="date">June 26, 2026</span>
+                    <h2><a href="2026_06_26_vlx_flow_en.html">VLX-Flow: Continuous Video Understanding for Real-Time Multimodal Interaction</a></h2>
+                    <p>VLX-Flow turns live video streams into reusable model memory. It processes continuous chunks, maintains visual cache and semantic memory, and supports low-latency interaction without reprocessing the full video history for every query.</p>
+                    <a href="2026_06_26_vlx_flow_en.html" class="read-more">Read more →</a>
+                </div>
+            </li>
+            <li>
+                <img src="images/vlx-flow/vlx-flow-overview.png" alt="VLX-Flow 概览" class="blog-image">
+                <div class="blog-content">
+                    <span class="date">2026年6月26日</span>
+                    <h2><a href="2026_06_26_vlx_flow_zh.html">VLX-Flow：让多模态模型持续看见视频世界</a></h2>
+                    <p>VLX-Flow 面向一个越来越关键的问题：当视频从离线文件变成实时输入，多模态模型应该如何持续观察、持续记忆，并在任意时刻完成交互？VLX-Flow 将视频拆成连续片段，以增量方式更新视觉上下文和语义记忆，让模型不必在每次提问时重新处理完整历史。</p>
+                    <a href="2026_06_26_vlx_flow_zh.html" class="read-more">阅读全文 →</a>
+                </div>
+            </li>
             <li>
                 <img src="images/0815/od.jpg" alt="OmAgent Roadmap" class="blog-image">
                 <div class="blog-content">
@@ -68,4 +107,4 @@
         </ul>
     </main>
 </body>
-</html> 
+</html>
