@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX-Go：面向具身导航的视觉-语言短时航点预测模型</title>
+    <meta name="description" content="VLX-Go 是一个 0.6B 轻量化视觉-语言航点规划模型，将近期视觉历史、当前观测和自然语言指令映射为短时局部航点，用于闭环具身导航。">
+    <link rel="canonical" href="https://om-ai-lab.github.io/2026_06_28_vlx_go_zh.html">
+    <link rel="alternate" hreflang="en" href="https://om-ai-lab.github.io/2026_06_28_vlx_go_en.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://om-ai-lab.github.io/2026_06_28_vlx_go_zh.html">
+    <meta property="og:title" content="VLX-Go：面向具身导航的视觉-语言短时航点预测模型">
+    <meta property="og:description" content="VLX-Go 根据近期单目图像、当前观测和自然语言指令预测短时航点，支持目标跟随、局部导航、动态避障和闭环评测。">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://om-ai-lab.github.io/2026_06_28_vlx_go_zh.html">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-go/overall_intro.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/blog-styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">返回博客索引</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_06_28_vlx_go_en.html" lang="en">English</a>
+        <span class="nav-separator">·</span>
+        <a href="https://github.com/om-ai-lab/VLX-Go">GitHub</a>
+        <span class="nav-separator">·</span>
+        <a href="https://huggingface.co/blog/omlab/vlx-go">Hugging Face</a>
+    </nav>
+
+    <header>
+        <h1>VLX-Go：面向具身导航的视觉-语言短时航点预测模型</h1>
+        <p><em>发布于 2026年6月28日</em></p>
+    </header>
+
+    <main>
+        <h2>引言</h2>
+        <p>具身导航既不是单纯的感知问题，也不是单纯的控制问题。机器人需要理解用户意图，观察不断变化的环境，跟随目标或路线，避开障碍，并在新的观测到来后不断修正下一步动作。</p>
+        <p>VLX-Go 面向的正是这个实用中间层：它是一个轻量化视觉-语言航点规划模型，输入近期单目图像、当前观测和自然语言指令，输出未来短时间窗内的局部航点，再交由下游控制器或仿真环境执行。</p>
+        <p>与依赖通用 VLM 描述场景、再生成文本形式动作不同，VLX-Go 将视觉-语言状态直接映射到紧凑的运动接口。这种设计更适合目标跟随、局部导航、动态避障和闭环评测，因为模型的预测需要被执行、被观察，并在下一轮中继续修正。</p>
+
+        <h2>从场景描述到局部运动</h2>
+        <p>VLX-Go 要回答的核心问题是：<strong>多模态模型如何把当前看到的画面和接收到的语言指令，转化为接下来几步可执行的导航目标？</strong></p>
+        <p>很多视觉-语言系统擅长生成语言：描述画面、回答问题、解释当前可见内容。但对机器人来说，语言通常不是最终控制接口。系统最终需要的是局部目标、运动航点或可由控制器消费的轨迹信号。</p>
+        <p>VLX-Go 聚焦的正是这个接口。它不试图一次性规划完整全局路径，也不把文本回复当成动作，而是预测一小段局部航点序列，再让下游控制器处理速度命令、安全约束和具体平台动力学。</p>
+
+        <div class="image-container">
+            <img src="images/vlx-go/overall_intro.png" alt="VLX-Go 总览：仿真数据生成、基础策略学习、在线仿真学习和真实机器人部署">
+        </div>
+
+        <h3>1. 指令条件下的航点规划</h3>
+        <p>在每个时间步，VLX-Go 解决一个滚动时域航点预测问题。模型接收三类上下文：近期视觉历史、当前图像，以及定义任务意图的语言指令。</p>
+        <p>近期帧帮助规划器理解运动和变化。目标人物可能被障碍物短暂遮挡，门口可能刚刚进入视野，机器人也可能偏离原本路线。当前帧提供即时状态，语言指令则告诉模型什么最重要：跟随某个人、穿过走廊、接近目标，或避开障碍。</p>
+        <p>模型输出的是短时间窗内的航点序列。每个航点表示一个局部运动目标，例如位置、朝向，或其他由控制器直接使用的航点形式。具体维度取决于数据集和控制接口，但设计原则很明确：<strong>预测下一段有用的局部目标，然后在下一帧观测到来时重新规划</strong>。</p>
+
+        <pre><code>history frames + current frame + instruction
+                 |
+                 v
+        VLX-Go waypoint planner
+                 |
+                 v
+       short-horizon waypoints -> controller / simulator</code></pre>
+
+        <h3>2. 0.6B 轻量化规划器</h3>
+        <p>VLX-Go 采用 0.6B 规模的规划器。对于具身系统来说，这一点很关键：导航通常不是一次性请求，而是在闭环中高频重复运行。更低的推理成本意味着模型更容易被频繁调用，也更容易部署到离机器人更近的位置，并与安全检查或仿真反馈结合。</p>
+        <p>模型的任务边界刻意聚焦在短时局部运动上。这样既能保持预测目标紧凑，又能保留语言条件规划和时序视觉上下文的能力。在动态场景中，早先预测不必被当作固定的长程路径，而是可以被后续观测持续修正。</p>
+
+        <h3>3. 闭环导航</h3>
+        <p>VLX-Go 将高层航点预测与平台相关的底层控制解耦：规划器预测局部目标，控制器执行这些目标、施加安全约束，并返回下一帧观测。随后模型继续预测下一段航点。</p>
+        <p>这种滚动式设计特别适合动态导航。目标会移动，障碍物可能进入相机视野，机器人实际执行的轨迹也可能与预测路径略有偏差。闭环预测让规划器能够回应这些变化，而不是被一条过时路线锁死。</p>
+        <p>同样的结构也支持从仿真到真实机器人的流程。仿真数据可以提供多样化场景、机器人观测、语言目标和专家轨迹；在线仿真学习则让策略接触执行时反馈，例如避障、碰撞信号、进度奖励，以及与目标指令的一致性；最后，学习到的规划器可以在安全层和控制层之后部署到真实机器人上。</p>
+
+        <h2>训练与评测</h2>
+        <p>VLX-Go 首先基于离线轨迹数据训练，随后可以利用在线仿真反馈进一步优化。离线学习让模型建立视觉历史、语言指令和局部航点目标之间的对应关系；在线优化则补充模型在真实执行过程中会遇到的反馈。</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>阶段</th>
+                    <th>数据 / 信号</th>
+                    <th>目标</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>离线轨迹学习</td>
+                    <td>演示轨迹、视频帧、语言指令</td>
+                    <td>学习目标跟随和局部航点生成</td>
+                </tr>
+                <tr>
+                    <td>在线优化</td>
+                    <td>仿真反馈、碰撞信号、目标状态、奖励信号</td>
+                    <td>提升对遮挡、障碍物和闭环漂移的鲁棒性</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>典型监督目标包括航点回归、轨迹方向损失、可选的速度或动作辅助损失，以及平滑正则项。在线阶段用于补充静态演示数据覆盖不足的失败模式，例如遮挡、障碍物交互，以及多轮执行后累积的漂移。</p>
+
+        <div class="image-container">
+            <img src="images/vlx-go/benchmark.png" alt="EVT-Bench STT 中成功率、跟踪率和碰撞率对比">
+            <p>EVT-Bench STT 评测结果。在 0.6B 参数规模下，VLX-Go 取得了较强的成功率，并在列出的模型中达到最高跟踪率；进一步降低碰撞率仍是未来需要结合仿真环境、奖励设计、控制器和安全约束持续优化的方向。</p>
+        </div>
+
+        <p><strong>指标说明：</strong>SR 表示任务成功率，TR 表示目标跟踪率，CR 表示碰撞率。VLX-Go 展示了一个紧凑规模的规划器也可以获得有竞争力的导航成功率和强跟踪能力，同时保留适合闭环具身系统使用的可执行接口。</p>
+
+        <h2>工程价值：面向导航的实用接口</h2>
+        <p>从工程角度看，VLX-Go 将多模态理解转化为导航可用的信号。机器人并不只需要一段关于场景的描述，它需要的是下一组可以检查、可以约束、可以执行的局部目标。</p>
+        <p>短时航点接口的价值在于清晰拆分系统职责：模型负责视觉-语言规划，控制器负责物理执行，仿真器和安全层提供反馈与约束。这种拆分让系统更容易评测、调试，并从仿真逐步迁移到真实部署。</p>
+        <p>VLX-Go 基于 <a href="https://github.com/om-ai-lab/OmTrackVLA">OmTrackVLA</a> 的技术路线，并进一步延展到轻量化航点预测与闭环导航研究。它的目标不只是让模型理解导航指令，而是让模型能够反复把指令和观测转化为机器人真正可以使用的运动目标。</p>
+        <p><em>更多技术细节和开源项目，请访问：<a href="https://github.com/om-ai-lab/VLX-Go">om-ai-lab/VLX-Go</a>。</em></p>
+    </main>
+</body>
+</html>

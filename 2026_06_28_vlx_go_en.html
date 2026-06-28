@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX-Go: Vision-Language Short-Horizon Waypoint Prediction for Embodied Navigation</title>
+    <meta name="description" content="VLX-Go is a lightweight 0.6B vision-language waypoint planner for embodied navigation, mapping visual history, current observations, and language instructions into short-horizon local waypoints.">
+    <link rel="canonical" href="https://om-ai-lab.github.io/2026_06_28_vlx_go_en.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://om-ai-lab.github.io/2026_06_28_vlx_go_zh.html">
+    <link rel="alternate" hreflang="en" href="https://om-ai-lab.github.io/2026_06_28_vlx_go_en.html">
+    <meta property="og:title" content="VLX-Go: Vision-Language Short-Horizon Waypoint Prediction for Embodied Navigation">
+    <meta property="og:description" content="VLX-Go predicts short-horizon waypoints from recent monocular frames, current observations, and natural-language instructions for closed-loop embodied navigation.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://om-ai-lab.github.io/2026_06_28_vlx_go_en.html">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-go/overall_intro.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/blog-styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">Back to Blog Index</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_06_28_vlx_go_zh.html" lang="zh-CN">中文</a>
+        <span class="nav-separator">·</span>
+        <a href="https://github.com/om-ai-lab/VLX-Go">GitHub</a>
+        <span class="nav-separator">·</span>
+        <a href="https://huggingface.co/blog/omlab/vlx-go">Hugging Face</a>
+    </nav>
+
+    <header>
+        <h1>VLX-Go: Vision-Language Short-Horizon Waypoint Prediction for Embodied Navigation</h1>
+        <p><em>Published on June 28, 2026</em></p>
+    </header>
+
+    <main>
+        <h2>Introduction</h2>
+        <p>Embodied navigation is not only a perception problem, and it is not only a control problem. A robot must understand what the user wants, observe a changing scene, follow a target or route, avoid obstacles, and continuously correct its next movement as new observations arrive.</p>
+        <p>VLX-Go is designed for this practical middle layer. It is a lightweight vision-language waypoint planner that receives recent monocular frames, the current observation, and a natural-language instruction, then predicts short-horizon local waypoints for a downstream controller or simulator.</p>
+        <p>Instead of asking a general-purpose VLM to describe the scene or emit text-only actions, VLX-Go maps visual-language state directly into a compact motion interface. This makes it better suited for target following, local navigation, dynamic obstacle avoidance, and closed-loop evaluation where predictions must be executed, observed, and revised over time.</p>
+
+        <h2>From Scene Description to Local Motion</h2>
+        <p>The core question behind VLX-Go is: <strong>how can a multimodal model turn what it sees and what it is told into the next few executable navigation targets?</strong></p>
+        <p>Many vision-language systems are strongest when they produce language: they caption scenes, answer questions, or explain what is visible. For a robot, however, language is usually not the final control interface. The system eventually needs local goals, motion targets, or trajectories that can be consumed by a controller.</p>
+        <p>VLX-Go focuses on this interface. It does not try to plan an entire global route in one step, and it does not rely on a text response as the action. It predicts a short sequence of local waypoints, then lets the downstream controller handle velocity commands, safety constraints, and platform-specific dynamics.</p>
+
+        <div class="image-container">
+            <img src="images/vlx-go/overall_intro.png" alt="VLX-Go overview: simulation data generation, foundation policy learning, online simulator learning, and real robot deployment">
+        </div>
+
+        <h3>Instruction-Conditioned Waypoint Planning</h3>
+        <p>At each time step, VLX-Go solves a receding-horizon waypoint prediction problem. The model receives three sources of context: recent visual history, the current frame, and the language instruction that defines the task intent.</p>
+        <p>The recent frames help the planner understand motion and change. A target person may move behind an obstacle, a doorway may become visible, or the robot may drift from the intended path. The current frame anchors the immediate state, while the instruction tells the model what matters: follow the person, go through the corridor, approach a target, or avoid obstacles.</p>
+        <p>The output is a short-horizon waypoint sequence. Each waypoint represents a local motion target, such as a position, heading, or another controller-specific representation. The exact dimensionality depends on the dataset and control interface, but the design principle is simple: <strong>predict the next useful local goals, then replan when the next observation arrives</strong>.</p>
+
+        <pre><code>history frames + current frame + instruction
+                 |
+                 v
+        VLX-Go waypoint planner
+                 |
+                 v
+       short-horizon waypoints -> controller / simulator</code></pre>
+
+        <h3>A Lightweight 0.6B Planner</h3>
+        <p>VLX-Go uses a 0.6B-scale planner. This is important for embodied systems because navigation often runs in a repeated closed loop rather than as a one-off request. Lower inference cost makes it easier to evaluate frequently, deploy closer to the robot, and combine planning with safety checks or simulator feedback.</p>
+        <p>The model is intentionally scoped around short-horizon local motion. This keeps the planning target compact while still leaving room for language-conditioned behavior and temporal visual context. In dynamic scenes, earlier predictions can be corrected by the next observation instead of being treated as a fixed long-range plan.</p>
+
+        <h3>Closed-Loop Navigation</h3>
+        <p>VLX-Go separates high-level waypoint prediction from platform-specific low-level control. The planner predicts local goals; the controller executes them, applies safety constraints, and returns the next observation. The model then predicts the next segment.</p>
+        <p>This rolling design is especially useful in dynamic navigation. Targets may move, obstacles may enter the camera view, and the robot's executed motion may differ slightly from the predicted path. Closed-loop prediction allows the planner to respond to these changes rather than committing to a stale route.</p>
+        <p>The same structure also supports a simulation-to-real workflow. Simulation data can provide diverse scenes, observations, language goals, and expert trajectories. Online simulator learning can then expose the policy to execution-time feedback such as obstacle avoidance, collision signals, progress rewards, and alignment with the target instruction. Finally, the learned planner can be deployed on real robots behind a safety and control layer.</p>
+
+        <h2>Training and Evaluation</h2>
+        <p>VLX-Go is trained first from offline trajectory data and can then be refined with online simulator feedback. Offline learning teaches the model to associate visual history, instructions, and local waypoint targets. Online optimization complements this by showing the model what happens when its predictions are actually executed.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>Data / Signal</th>
+                    <th>Objective</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Offline trajectory learning</td>
+                    <td>Demonstration trajectories, video frames, language instructions</td>
+                    <td>Learn target following and local waypoint generation</td>
+                </tr>
+                <tr>
+                    <td>Online optimization</td>
+                    <td>Simulator feedback, collision signals, target state, reward signals</td>
+                    <td>Improve robustness to occlusion, obstacles, and closed-loop drift</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Typical supervised objectives include waypoint regression, trajectory direction loss, optional velocity or action auxiliary loss, and smoothness regularization. The online stage helps cover failure modes that static demonstrations may underrepresent, including occlusion, obstacle interactions, and accumulated drift after repeated execution.</p>
+
+        <div class="image-container">
+            <img src="images/vlx-go/benchmark.png" alt="EVT-Bench STT comparison for success rate, track rate, and collision rate">
+            <p>EVT-Bench STT evaluation. At the 0.6B scale, VLX-Go reaches a strong success rate and the highest tracking rate among the listed methods, while collision-rate reduction remains an important direction for future simulator, reward, controller, and safety-constraint tuning.</p>
+        </div>
+
+        <p><strong>Metrics:</strong> SR is success rate, TR is tracking rate, and CR is collision rate. VLX-Go demonstrates that a compact planner can achieve competitive navigation success and strong target tracking, while preserving a deployable interface for closed-loop embodied systems.</p>
+
+        <h2>Engineering Value: A Practical Navigation Interface</h2>
+        <p>From an engineering perspective, VLX-Go turns multimodal understanding into a navigation-ready signal. A robot does not need only a caption of the scene; it needs a next set of local goals that can be checked, constrained, and executed.</p>
+        <p>The short-horizon waypoint interface is useful because it keeps responsibilities clean. The model handles visual-language planning. The controller handles physical execution. The simulator and safety layer provide feedback and constraints. This separation makes the system easier to evaluate, debug, and move from simulation toward real deployment.</p>
+        <p>VLX-Go builds on the technical direction of <a href="https://github.com/om-ai-lab/OmTrackVLA">OmTrackVLA</a> and extends it toward lightweight waypoint prediction and closed-loop navigation research. The goal is not just to make a model that understands navigation instructions, but to make one that can repeatedly convert those instructions and observations into motion targets a robot can use.</p>
+        <p><em>For more technical details and open-source projects, please visit: <a href="https://github.com/om-ai-lab/VLX-Go">om-ai-lab/VLX-Go</a>.</em></p>
+    </main>
+</body>
+</html>
