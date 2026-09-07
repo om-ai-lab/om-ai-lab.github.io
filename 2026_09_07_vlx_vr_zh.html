@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX-VR：面向复杂视频推理的全面升级</title>
+    <meta name="description" content="VLX-VR 在 MINERVA 视频推理基准上达到 78.8 准确率，并在短、中、长视频上保持稳定，提供可核验的推理过程评测。">
+    <link rel="canonical" href="https://om-ai-lab.github.io/2026_09_07_vlx_vr_zh.html">
+    <link rel="alternate" hreflang="en" href="https://om-ai-lab.github.io/2026_09_07_vlx_vr_en.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://om-ai-lab.github.io/2026_09_07_vlx_vr_zh.html">
+    <meta property="og:title" content="VLX-VR：面向复杂视频推理的全面升级">
+    <meta property="og:description" content="VLX-VR 在 MINERVA 视频推理基准上达到 78.8 准确率，并在短、中、长视频上保持稳定，提供可核验的推理过程评测。">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://om-ai-lab.github.io/2026_09_07_vlx_vr_zh.html">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-vr/minerva_length_vlxvr.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/blog-styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <nav>
+        <a href="index.html">返回博客索引</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_09_07_vlx_vr_en.html" lang="en">English</a>
+        <span class="nav-separator">·</span>
+        <a href="https://arxiv.org/abs/2505.00681">MINERVA</a>
+        <span class="nav-separator">·</span>
+        <a href="https://github.com/om-ai-lab">GitHub</a>
+    </nav>
+
+    <header>
+        <h1>VLX-VR：面向复杂视频推理的全面升级</h1>
+        <p><em>发布于 2026年9月7日</em></p>
+    </header>
+
+    <main>
+<h2>亮点</h2>
+
+<ul>
+<li>📊 <strong>同类领先</strong>：在 MINERVA 视频推理基准上，VLX-VR 准确率达到 <strong>78.8</strong>，高于 Seed2.1 Pro（70.7）、Gemini 3.5（68.6）和 Seed2.1 Turbo（65.9）。</li>
+<li>⏱ <strong>时长稳健</strong>：按 MINERVA 论文同款三档切开（5 分钟以下 / 5–15 分钟 / 15 分钟以上），准确率为 <strong>76.70% / 78.73% / 80.92%</strong>。跨时长准确率方差（CDAV）为 <strong>2.97</strong>，三档标准差约 1.7 个百分点。论文公开的 Gemini 2.5 Pro、GPT-4.1 等随时长下滑，VLX-VR 不跟着掉，长视频档还略高。</li>
+<li>🧠 <strong>过程可核</strong>：MINERVA 为每道题提供人工标注的推理轨迹。在答对的题目中，模型 reasoning 与参考轨迹的一致性为 <strong>96.2%</strong>，说明正确结果并不主要靠蒙对选项。</li>
+<li>🎯 <strong>强项明确</strong>：阅读理解 90.8%、情境感知 90.3%、时间推理 86.0%、数值推理 85.7%，说明在文本线索、情境和时间/数值推理上更稳。</li>
+</ul>
+
+<h2>1. 引言</h2>
+
+<p>视频理解正在从「这段视频在讲什么」转向「根据画面、文本和时间线完成多步推理」。VLX-VR 面向的正是这一层能力：<strong>Video Reasoning</strong>——在可变时长的视频上，把感知、时间定位、文本线索和逻辑步骤串成可检验的推理过程，而不是只给出最终选项。</p>
+
+<p>现有大量 VideoQA 基准只监督最终答案。模型可能靠语言偏见、排除法或偶然命中拿到分数，评测无法区分「推理对了」和「答案碰巧对了」。MINERVA 正是为补上这一层而设计：每道题都带人工撰写的 reasoning trace，既可以评准确率，也可以评推理过程。</p>
+
+<p>本文报告 VLX-VR 在 MINERVA 上的结果。重点有三：第一，与同类视频推理模型对比整体准确率；第二，按视频时长切开，看长视频是否拖累水平；第三，按数据集题型分类看能力剖面，并补充答对样本上的 reasoning 一致性。</p>
+
+<h2>2. MINERVA 数据集</h2>
+
+<p>MINERVA（Multimodal INterpretablE Reasoning Video Annotations）是面向复杂视频推理的 VideoQA 基准，论文见 <a href="https://arxiv.org/abs/2505.00681">arXiv:2505.00681</a>，数据见 <a href="https://github.com/google-deepmind/neptune">google-deepmind/neptune</a>。它不是短 clip 动作分类集，而是专门压多步、多技能、多模态推理。</p>
+
+<p>公开设定的主要特点如下。</p>
+
+<p><strong>规模与结构。</strong> <strong>1000+</strong> 道题，覆盖 <strong>200+</strong>段视频；每段视频通常对应多道题。每道题提供 <strong>5 个选项</strong>、正确答案，以及一段人工撰写的推理轨迹。</p>
+
+<p><strong>必须多步、多技能。</strong> 每道题被要求至少组合两种技能，例如时间推理、计数、因果、目标推理、情境感知、事件发生、状态变化、阅读（OCR）、空间感知、数值推理（计数以外的数学运算）、物体识别、反事实推理。因此 MINERVA 评的是组合能力，而不是单一感知头。</p>
+
+<p><strong>多模态。</strong> 部分题目必须结合画面、时间线和文本线索，只靠单帧不够。</p>
+
+<p><strong>时长跨度大。</strong> 视频从不足 2 分钟到约 100 分钟、最长可超过 1.5 小时，均值约 12 分钟，覆盖短片、体育、教学、生活/教程、旅行等域。这使它适合检验模型是否只会做短视频，还是能在中长视频上保持推理质量。</p>
+
+<p><strong>推理轨迹可对照。</strong> 参考 reasoning 平均约 92 词；约 99.6% 含时间戳，平均每条约 4 个时间戳，并描述关键动作、物体和逻辑步骤。评测因此可以做 reference-based 过程分析：模型是否定位到了该看的时段、是否看对了对象、逻辑是否完整。论文中人类准确率约 92.5%，早期前沿模型（如 Gemini 2.5 Pro Thinking）约 66.2%，说明集合本身仍有爬坡空间。</p>
+
+<p>对本报告而言，MINERVA 同时提供三件事：整体 Video Reasoning 分数、按时长看长视频能力、按题型看能力剖面，以及用黄金推理轨迹衡量「答对时过程是否也一致」。</p>
+
+<h2>3. 评测设置</h2>
+
+<p>评测对象为 <strong>VLX-VR</strong>，任务定义为 MINERVA 上的视频推理（Video Reasoning）：输入视频与问题，输出选项及推理过程。</p>
+
+<p>对照模型取当前同类视频推理结果：<strong>Seed2.1 Pro</strong>、<strong>Seed2.1 Turbo</strong>、<strong>Gemini 3.5</strong>，分数来自 Seed 官网 <a href="https://seed.bytedance.com/en/seed2_1">Seed2.1</a>；并一并列出 MINERVA 论文中的公开结果。指标以准确率为主；过程侧在答对样本上计算模型 reasoning 与 MINERVA 参考轨迹的一致性。题型划分沿用数据集标注的技能类型。时长与论文 Fig. 3(c) 对齐，按 <strong>5 分钟以下、5–15 分钟、15 分钟以上</strong> 三档统计，并与论文公开模型的分时长曲线对照。</p>
+
+<p>表 1 为整体准确率对照；其余表格为本次评测切片结果。</p>
+
+<h2>4. 整体结果：领先同类视频推理模型</h2>
+
+<p>在 MINERVA 视频推理能力上，VLX-VR 准确率为 <strong>78.8</strong>，高于本次对照的 Seed2.1 / Gemini 3.5，也高于论文公开的 Gemini 2.5 Pro Thinking（66.20）。</p>
+
+<p><strong>表 1.</strong> MINERVA Video Reasoning 准确率。分数为 MCQ 准确率（%）。VLX-VR 为本次评测；Seed2.1 Pro、Seed2.1 Turbo、Gemini 3.5 来自 Seed 官网 <a href="https://seed.bytedance.com/en/seed2_1">Seed2.1</a>；其余为 MINERVA 论文公开结果。</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">模型</th>
+<th scope="col">分数</th>
+</tr></thead><tbody>
+<tr>
+<td>VLX-VR</td>
+<td><strong>78.8</strong></td>
+</tr>
+<tr>
+<td>Seed2.1 Pro</td>
+<td>70.7</td>
+</tr>
+<tr>
+<td>Seed2.1 Turbo</td>
+<td>65.9</td>
+</tr>
+<tr>
+<td>Gemini 3.5</td>
+<td>68.6</td>
+</tr>
+<tr>
+<td>Gemini 2.5 Pro Thinking</td>
+<td>66.20</td>
+</tr>
+<tr>
+<td>Gemini 2.5 Flash Thinking</td>
+<td>57.30</td>
+</tr>
+<tr>
+<td>Gemini 2.0 Flash</td>
+<td>53.47</td>
+</tr>
+<tr>
+<td>Claude 3.5 Sonnet v2</td>
+<td>31.28</td>
+</tr>
+<tr>
+<td>GPT-4.1</td>
+<td>53.99</td>
+</tr>
+<tr>
+<td>GPT-4o</td>
+<td>45.54</td>
+</tr>
+<tr>
+<td>OpenAI o1</td>
+<td>43.48</td>
+</tr>
+<tr>
+<td>Qwen2.5-VL</td>
+<td>35.05</td>
+</tr>
+<tr>
+<td>VideoLLaMA3</td>
+<td>35.91</td>
+</tr>
+<tr>
+<td>InternVideo2.5</td>
+<td>35.18</td>
+</tr>
+<tr>
+<td>Random</td>
+<td>20.00</td>
+</tr>
+<tr>
+<td>Human</td>
+<td>92.54</td>
+</tr>
+</tbody></table></div>
+
+<p>相对 Seed2.1 Pro 高 8.1 分，相对 Gemini 3.5 高 10.2 分，相对 Seed2.1 Turbo 高 12.9 分，相对论文中的 Gemini 2.5 Pro Thinking 高 12.6 分。差距不是「短视频识别碾压」，而是在 MINERVA 这种多步、多技能、含中长视频的推理集上整体更好。78.8 仍低于人类 92.54 的上限，但已在本次对照中领先。</p>
+
+<h2>5. 时长分布：长视频能力保持稳定</h2>
+
+<p>MINERVA 的价值之一是时长跨度。论文 Fig. 3(c) 把视频分成三档：<strong>5 分钟以下、5–15 分钟、15 分钟以上</strong>。公开模型（Gemini 2.5 Pro Thinking、GPT-4.1、OpenAI o1、Claude 3.5 Sonnet v2）准确率随时长增加明显下滑。本次评测按同一分档切开。</p>
+
+<p><strong>表 2.</strong> 按视频时长的准确率（与论文 Fig. 3(c) 同档）。</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">视频时长</th>
+<th scope="col">准确率</th>
+</tr></thead><tbody>
+<tr>
+<td>5 分钟以下</td>
+<td>76.70%</td>
+</tr>
+<tr>
+<td>5–15 分钟</td>
+<td>78.73%</td>
+</tr>
+<tr>
+<td>15 分钟以上</td>
+<td>80.92%</td>
+</tr>
+</tbody></table></div>
+
+<p>三档都落在约 77–81%：5 分钟以下 76.70%；中间档 78.73%；15 分钟以上 80.92%，不降反升。三档极差 <strong>4.22</strong> 个百分点。</p>
+
+<p><strong>表 3.</strong> 与 MINERVA 论文公开模型的分时长对照（准确率 %）。论文模型数字由 Fig. 3(c) 官方 SVG 数字化；VLX-VR 为表 2。不列入论文中的 Qwen2.5-VL、VideoLLaMA3、InternVideo2.5（开源短板，不进入本图对照）。</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">模型</th>
+<th scope="col">5 分钟以下</th>
+<th scope="col">5–15 分钟</th>
+<th scope="col">15 分钟以上</th>
+</tr></thead><tbody>
+<tr>
+<td>VLX-VR</td>
+<td><strong>76.70</strong></td>
+<td><strong>78.73</strong></td>
+<td><strong>80.92</strong></td>
+</tr>
+<tr>
+<td>Gemini 2.5 Pro (Thinking)</td>
+<td>68.87</td>
+<td>66.84</td>
+<td>57.97</td>
+</tr>
+<tr>
+<td>GPT-4.1</td>
+<td>58.84</td>
+<td>54.79</td>
+<td>47.25</td>
+</tr>
+<tr>
+<td>OpenAI o1 (64f)</td>
+<td>48.28</td>
+<td>41.45</td>
+<td>40.38</td>
+</tr>
+<tr>
+<td>Claude 3.5 Sonnet v2</td>
+<td>40.90</td>
+<td>33.68</td>
+<td>28.30</td>
+</tr>
+</tbody></table></div>
+
+<p>短视频档 VLX-VR 已高于 Gemini 2.5 Pro（76.70 vs 68.87）；进入 15 分钟以上后，Gemini 掉到 58.0，GPT-4.1 掉到 47.3，VLX-VR 升到 80.92。这是「整体 78.8」之外更硬的一点：长视频没有把推理水平打穿。</p>
+
+<div class="image-container">
+<img src="images/vlx-vr/minerva_length_vlxvr.png" alt="MINERVA 按时长准确率：VLX-VR 与论文公开模型">
+<p><strong>图 1.</strong> MINERVA 按时长准确率。VLX-VR 为红色菱形；其余为论文 Fig. 3(c) 中的闭源对照（不含 Human、不含三家开源模型）。</p>
+</div>
+
+<p>为把「时长变化对准确率的影响」收成一个数，定义 <strong>跨时长准确率方差（CDAV, Cross-Duration Accuracy Variance）</strong>：对三档准确率等权取总体方差</p>
+
+<div class="math-display">\[\mathrm{CDAV}=\frac{1}{n}\sum_{i=1}^{n}(\mathrm{Acc}_{i}-\overline{\mathrm{Acc}})^{2}\]</div>
+
+<p>其中 \(n=3\)，\(\mathrm{Acc}_{i}\) 以百分点计。三档均值为 78.78%，<strong>CDAV = 2.97</strong>（百分点\(^{2}\)），对应标准差 \(\sigma=1.72\) 个百分点。方差仍小，表示输入视频时长在短 / 中 / 长三档之间切换时，准确率没有大幅晃动。该指标对三档等权、未按题量加权。</p>
+
+<p>结论：<strong>时间长度对 VLX-VR 的整体水平影响较小（CDAV = 2.97），三档维持在 77–81%，且长视频档略高。</strong> 这与论文里「公开模型随时长下滑」的画像不同，说明 VLX-VR 能把推理能力接到中长视频上。</p>
+
+<h2>6. 任务类型：事件、文本与因果更稳</h2>
+
+<p>题型按 MINERVA 的技能标注统计。总体准确率 78.8% 之下，优势集中在文本线索、情境和时间/数值推理。</p>
+
+<p><strong>表 4.</strong> 按题型的准确率。</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">题型</th>
+<th scope="col">准确率</th>
+</tr></thead><tbody>
+<tr>
+<td>计数</td>
+<td>66.67%</td>
+</tr>
+<tr>
+<td>物体识别</td>
+<td>82.01%</td>
+</tr>
+<tr>
+<td>事件发生</td>
+<td>82.81%</td>
+</tr>
+<tr>
+<td>听力理解</td>
+<td>75.19%</td>
+</tr>
+<tr>
+<td>时间推理</td>
+<td>85.95%</td>
+</tr>
+<tr>
+<td>阅读理解</td>
+<td>90.76%</td>
+</tr>
+<tr>
+<td>数值推理</td>
+<td>85.71%</td>
+</tr>
+<tr>
+<td>空间感知</td>
+<td>73.47%</td>
+</tr>
+<tr>
+<td>因果关系</td>
+<td>72.73%</td>
+</tr>
+<tr>
+<td>反事实推理</td>
+<td>74.19%</td>
+</tr>
+<tr>
+<td>情境感知</td>
+<td>90.32%</td>
+</tr>
+<tr>
+<td>目标推理</td>
+<td>76.92%</td>
+</tr>
+<tr>
+<td>状态变化</td>
+<td>69.23%</td>
+</tr>
+</tbody></table></div>
+
+<p><strong>强项。</strong> 阅读理解 90.8%、情境感知 90.3%、时间推理 86.0%、数值推理 85.7%，均明显高于总体；事件发生 82.8%、物体识别 82.0% 也在总体以上。VLX-VR 更擅长把文本线索、情境和时间/数值信息串成完整推理链。</p>
+
+<p><strong>弱项。</strong> 计数、状态变化、因果关系、空间感知等仍低于总体；计数仍是最大短板。后续会继续优化。</p>
+
+<h2>7. Reasoning 过程评测</h2>
+
+<p>MINERVA 与只给最终答案的 VideoQA 集的差别，在于每道题都有人工推理轨迹。本次在<strong>答对的题目</strong>上，把模型输出的 reasoning 与参考轨迹对照，一致性为 <strong>96.2%</strong>。</p>
+
+<p>这一比例高，说明答对时模型给出的步骤与人工标注轨迹高度同向，78.8% 的准确率有过程支撑，而不是主要靠选项猜测。这是 VLX-VR 相对只给最终答案的视频问答方案的优势。</p>
+
+<h2>8. 案例</h2>
+
+<h3>5 分钟以下</h3>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">YouTube</th>
+<th scope="col">时长</th>
+<th scope="col">问题</th>
+<th scope="col">回答</th>
+<th scope="col">正确答案</th>
+</tr></thead><tbody>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=-1UXq-FzmQA">https://www.youtube.com/watch?v=-1UXq-FzmQA</a></td>
+<td>约 2分51秒</td>
+<td>What is the football broadcast's primary advertiser? (0) New England Savings. (1) FS1. (2) Quality Jewelers Sales &amp; Service. (3) Hammington Lumber Company. (4) Doritos.</td>
+<td>约 1分04秒，画面中央出现 Quality JEWELERS SALES &amp; SERVICE 品牌动画：白底、黑色花体字、蓝色钻石图标，标注珠宝销售与服务。这是全片唯一完整呈现的广告主动画。 其余文字都是场边广告牌或记分牌，不是转播主打广告：约 1分处远处记分牌有 LEADBETTER'S TAILGATE LOT；约 1分21秒–1分34秒场边围挡出现 Maine Savings（不是选项里的 New England Savings）；约 1分05秒–1分11秒是 VILLANOVA vs MAINE 比分牌。 FS1、Hammington Lumber Company、Doritos、New England Savings 均未出现。因此本场橄榄球转播的主要广告主是 Quality Jewelers Sales &amp; Service。 最终答案：Quality Jewelers Sales &amp; Service.</td>
+<td>Quality Jewelers Sales &amp; Service.</td>
+</tr>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=--C26cvIFdY">https://www.youtube.com/watch?v=--C26cvIFdY</a></td>
+<td>约 4分26秒</td>
+<td>What sequence of events occur to put Hawaii up 24 to 13 against UC Irvine? (0) #4 in white dribbles the ball down court then passes it to #10 in white who dunks the ball. (1) #0 in white inbounds the ball to #4 in white who then makes an immediate fadeaway. (2) #4 in white gets the rebound and passes it to #0 in white who then makes a 3 point shot. (3) #4 in white steals the ball and dribbles down court before making a dunk. (4) #10 in white steals the ball and passes it to #4 in white who makes a layup.</td>
+<td>约 1分–2分出现对阵 UC Irvine 的集锦。记分牌依次为 UC IRVINE 13 - HAWAII 17（约 1分34秒，首节剩 2:12）、13-21（约 1分40秒，首节剩 1:16），随后切到 17-28。 约 1分34秒–1分39秒：夏威夷球员欧洲步上篮，没有扣篮、抢断或后仰跳投。 约 1分40秒–1分49秒（字幕 REBOUND &amp; TRANSITION）：UC Irvine 投篮不中 → 白队 4 号抢到防守篮板 → 运球推进，经 25 号中转后传给三分线外的白队 0 号 → 0 号三分命中。这一记把夏威夷得分从 21 打到 24，形成 24-13。记分牌更新略有延迟。 该时段没有扣篮（女子比赛），也没有 0 号发球给 4 号后仰跳投、4 号抢断后扣篮、10 号抢断传 4 号上篮。把比分打到 24-13 的序列是：4 号抢篮板，传给 0 号，0 号投进三分。 最终答案：#4 in white gets the rebound and passes it to #0 in white who then makes a 3 point shot.</td>
+<td>#4 in white gets the rebound and passes it to #0 in white who then makes a 3 point shot.</td>
+</tr>
+</tbody></table></div>
+
+<h3>5–15 分钟</h3>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">YouTube</th>
+<th scope="col">时长</th>
+<th scope="col">问题</th>
+<th scope="col">回答</th>
+<th scope="col">正确答案</th>
+</tr></thead><tbody>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=-5Uz0Pz-mI0">https://www.youtube.com/watch?v=-5Uz0Pz-mI0</a></td>
+<td>约 6分51秒</td>
+<td>Which team has the first fast break of the game? (0) Marvin Tepper. (1) Yannik Baier. (2) There are no fast breaks. (3) Bulls. (4) Indians.</td>
+<td>开场对阵图（约 7 秒）显示本场为 Saale Bulls（主场，红黑队服）对 EC Hannover Indians（白色/红蓝队服），场馆是 Halle/Saale 的 Sparkassendom。 开场争球后，第一次端到端快速反击发生在约 27 秒：白队 Indians 的 9 号在本方防守区得球，带球冲过全场，约 32 秒攻入对方区域，约 42 秒射门被 Bulls 门将扑出，约 56 秒球门前发生冲突、裁判介入。此前红黑队没有更快的反击，只有开球、争抢和传射。 因此第一次快攻由 Indians 发起。Marvin Tepper、Yannik Baier 是球员名，不是队伍层面的答案；也不是「没有快攻」，更不是 Bulls。 最终答案：Indians.</td>
+<td>Indians.</td>
+</tr>
+</tbody></table></div>
+
+<h3>15 分钟以上</h3>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">YouTube</th>
+<th scope="col">时长</th>
+<th scope="col">问题</th>
+<th scope="col">回答</th>
+<th scope="col">正确答案</th>
+</tr></thead><tbody>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=FUJYcbCZFeI">https://www.youtube.com/watch?v=FUJYcbCZFeI</a></td>
+<td>约 16分07秒</td>
+<td>How many lightbulbs appear on the screen at 00:13? (0) 8. (1) 10. (2) 6. (3) 1. (4) 13.</td>
+<td>灯泡特效出现在视频开头。约 12.8 秒开始出现灯泡图形；恰好 00:13（约 13.0 秒）这一帧，屏幕上共有 8 个灯泡：6 个处于渐显、只露出一部分，2 个已经完全明亮。 题目问的是该时刻屏幕上出现多少个灯泡，应按画面里渲染出来的全部灯泡图形计数，而不是只数点亮的那 2 个。因此是 8，不是 10、6、1 或 13。 最终答案：8.</td>
+<td>8.</td>
+</tr>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=vbUlJr1s7qU">https://www.youtube.com/watch?v=vbUlJr1s7qU</a></td>
+<td>约 39分23秒</td>
+<td>How many rocks would be in the "Africa Rocks" sign if 3 were subtracted? (0) 5. (1) 3. (2) 4. (3) 1. (4) 2.</td>
+<td>约 22分14秒–22分24秒出现景观标识牌 CONRAD PREBYS AFRICA ROCKS：上方棕色底白字 CONRAD PREBYS，下方立体字 AFRICA（深蓝黑）与 ROCKS（亮蓝）。两个单词之间堆叠着 4 块彩色装饰岩石，自上而下为红棕色小石块、浅橄榄绿色扁平大石块、红棕色/灰紫色椭圆石块、浅棕黄色圆石块。 上方 CONRAD PREBYS 旁另有一块带蜗牛造型的浅绿石块，不属于两词之间的装饰序列，不计入本题。 牌上岩石为 4 块，减去 3 块还剩 1 块。 最终答案：1.</td>
+<td>1.</td>
+</tr>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=WmpPEoBp48A">https://www.youtube.com/watch?v=WmpPEoBp48A</a></td>
+<td>约 90分03秒</td>
+<td>What object surrounds the avatar of the second grandmaster the host introduces? (0) Curved daggers. (1) Golden Laurel. (2) Shark teeth. (3) Green wreath. (4) Garland of Roses.</td>
+<td>主播开头依次点开玩家资料页介绍： - 约 77 秒：Brilliant Frog of White Meadow（双项 Grandmaster），头像环绕金色月桂花环——这是第 1 位宗师，也是干扰项 Golden Laurel 的出处。 - 约 1分51秒：Lina Kitty（Expert / Grandmaster），头像环绕鲨鱼齿边框（银色尖牙、紫色基底、粉色丝带）——按介绍顺序是第 2 位宗师。 - 约 2分18秒：HudsonHornet250，翼状边框。 - 约 2分45秒：Sir Tyler，紫色尖刺维京风格边框。 - 约 4分：Dignia22（双项 Grandmaster），同样是银色鲨鱼齿边框。 - 约 4分47秒：General Bains 15708（非宗师），翼状边框。 按介绍顺序，第二位宗师是 Lina Kitty，头像环绕物是鲨鱼齿。即便按「两项都是 Grandmaster」计，第二位是 Dignia22，环绕物仍是鲨鱼齿。金色月桂属于第一位宗师；绿色花环、玫瑰花环、弯匕首都没有出现在第二位宗师头像上。 最终答案：Shark teeth.</td>
+<td>Shark teeth.</td>
+</tr>
+</tbody></table></div>
+
+<h2>9. 结论与后续</h2>
+
+<p>VLX-VR 在 MINERVA 上达到 78.8 的视频推理准确率，高于本次对照的 Seed2.1 与 Gemini 3.5。按论文同款三档（5 分钟以下 / 5–15 分钟 / 15 分钟以上）切开后为 76.70% / 78.73% / 80.92%，跨时长准确率方差 CDAV = 2.97；论文公开模型随时长下滑，VLX-VR 不跟着掉，长视频档还略高。答对样本的 reasoning 一致性为 96.2%，说明正确结果有过程支撑。题型上，阅读理解、情境感知、时间推理和数值推理明显更稳。计数、状态变化、因果关系、空间感知等仍有提升空间，后续会继续优化。</p>
+    </main>
+</body>
+</html>

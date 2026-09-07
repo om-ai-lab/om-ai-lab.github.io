@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX-VR: A Full Upgrade for Complex Video Reasoning</title>
+    <meta name="description" content="VLX-VR reaches 78.8 accuracy on MINERVA video reasoning and remains stable across short, medium, and long videos with checkable reasoning-process evaluation.">
+    <link rel="canonical" href="https://om-ai-lab.github.io/2026_09_07_vlx_vr_en.html">
+    <link rel="alternate" hreflang="en" href="https://om-ai-lab.github.io/2026_09_07_vlx_vr_en.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://om-ai-lab.github.io/2026_09_07_vlx_vr_zh.html">
+    <meta property="og:title" content="VLX-VR: A Full Upgrade for Complex Video Reasoning">
+    <meta property="og:description" content="VLX-VR reaches 78.8 accuracy on MINERVA video reasoning and remains stable across short, medium, and long videos with checkable reasoning-process evaluation.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://om-ai-lab.github.io/2026_09_07_vlx_vr_en.html">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-vr/minerva_length_vlxvr.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/blog-styles.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Back to Blog Index</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_09_07_vlx_vr_zh.html" lang="zh-CN">中文</a>
+        <span class="nav-separator">·</span>
+        <a href="https://arxiv.org/abs/2505.00681">MINERVA</a>
+        <span class="nav-separator">·</span>
+        <a href="https://github.com/om-ai-lab">GitHub</a>
+    </nav>
+
+    <header>
+        <h1>VLX-VR: A Full Upgrade for Complex Video Reasoning</h1>
+        <p><em>Published on September 7, 2026</em></p>
+    </header>
+
+    <main>
+<h2>Highlights</h2>
+
+<ul>
+<li>📊 <strong>Leading among peers</strong>: On the MINERVA video-reasoning benchmark, VLX-VR reaches <strong>78.8</strong> accuracy, above Seed2.1 Pro (70.7), Gemini 3.5 (68.6), and Seed2.1 Turbo (65.9).</li>
+<li>⏱ <strong>Stable across duration</strong>: Using the same three bins as the MINERVA paper (under 5 minutes / 5–15 minutes / over 15 minutes), accuracy is <strong>76.70% / 78.73% / 80.92%</strong>. Cross-Duration Accuracy Variance (CDAV) is <strong>2.97</strong>, with a three-bin standard deviation of about 1.7 percentage points. Public Gemini 2.5 Pro, GPT-4.1, and similar models drop as videos get longer; VLX-VR does not, and the long-video bin is slightly higher.</li>
+<li>🧠 <strong>Checkable process</strong>: MINERVA provides a human-written reasoning trace for every question. On correctly answered items, agreement between the model’s reasoning and the reference trace is <strong>96.2%</strong>, so correct results are not mainly lucky guesses among options.</li>
+<li>🎯 <strong>Clear strengths</strong>: Reading comprehension 90.8%, situational awareness 90.3%, temporal reasoning 86.0%, numerical reasoning 85.7%—more stable on textual cues, situation, and temporal/numerical reasoning.</li>
+</ul>
+
+<h2>1. Introduction</h2>
+
+<p>Video understanding is moving from “what is this video about” to “complete multi-step reasoning from frames, text, and the timeline.” VLX-VR targets exactly this layer: <strong>Video Reasoning</strong>—on videos of variable length, chaining perception, temporal localization, textual cues, and logical steps into a checkable reasoning process, rather than only emitting a final choice.</p>
+
+<p>Many existing VideoQA benchmarks supervise only the final answer. Models can score via language bias, elimination, or chance hits, and evaluation cannot tell “the reasoning was right” from “the answer happened to be right.” MINERVA is designed to fill that gap: every item includes a human-written reasoning trace, so one can score both accuracy and the reasoning process.</p>
+
+<p>This report presents VLX-VR results on MINERVA. The focus is threefold: first, overall accuracy against peer video-reasoning models; second, a duration split to see whether long videos drag performance down; third, a skill-type profile from dataset labels, plus reasoning agreement on correctly answered items.</p>
+
+<h2>2. The MINERVA Dataset</h2>
+
+<p>MINERVA (Multimodal INterpretablE Reasoning Video Annotations) is a VideoQA benchmark for complex video reasoning. Paper: <a href="https://arxiv.org/abs/2505.00681">arXiv:2505.00681</a>; data: <a href="https://github.com/google-deepmind/neptune">google-deepmind/neptune</a>. It is not a short-clip action-classification set; it is built to stress multi-step, multi-skill, multimodal reasoning.</p>
+
+<p>The public setup has the following main properties.</p>
+
+<p><strong>Scale and structure.</strong> <strong>1000+</strong> questions covering <strong>200+</strong> videos; each video usually has multiple questions. Every item provides <strong>5 options</strong>, the correct answer, and a human-written reasoning trace.</p>
+
+<p><strong>Must be multi-step and multi-skill.</strong> Each question is required to combine at least two skills, such as temporal reasoning, counting, causality, goal reasoning, situational awareness, event occurrence, state change, reading (OCR), spatial perception, numerical reasoning (math beyond counting), object recognition, and counterfactual reasoning. MINERVA therefore scores combinatorial ability, not a single perception head.</p>
+
+<p><strong>Multimodal.</strong> Some items must combine frames, the timeline, and textual cues; a single frame is not enough.</p>
+
+<p><strong>Wide duration span.</strong> Videos range from under 2 minutes to about 100 minutes, with the longest over 1.5 hours, mean about 12 minutes, covering shorts, sports, instruction, lifestyle/tutorials, travel, and other domains. This makes it suitable for testing whether a model only handles short video, or can keep reasoning quality on medium and long video.</p>
+
+<p><strong>Reasoning traces for comparison.</strong> Reference reasoning averages about 92 words; about 99.6% contain timestamps, averaging about 4 timestamps per trace, and describe key actions, objects, and logical steps. Evaluation can therefore do reference-based process analysis: whether the model localized the right interval, looked at the right objects, and completed the logic. Human accuracy in the paper is about 92.5%; an earlier frontier model (Gemini 2.5 Pro Thinking) is about 66.2%, so the set still has headroom.</p>
+
+<p>For this report, MINERVA supplies three things at once: an overall Video Reasoning score, long-video ability by duration, a skill-type profile, and a gold reasoning trace to measure whether the process agrees when the answer is correct.</p>
+
+<h2>3. Evaluation Setup</h2>
+
+<p>The evaluated system is <strong>VLX-VR</strong>. The task is video reasoning on MINERVA: given a video and a question, output a choice and a reasoning process.</p>
+
+<p>Peer video-reasoning numbers are <strong>Seed2.1 Pro</strong>, <strong>Seed2.1 Turbo</strong>, and <strong>Gemini 3.5</strong>, taken from the Seed site <a href="https://seed.bytedance.com/en/seed2_1">Seed2.1</a>; public numbers from the MINERVA paper are listed as well. The primary metric is accuracy; on the process side, we compute agreement between model reasoning and the MINERVA reference trace on correctly answered items. Skill types follow the dataset annotations. Duration bins match the paper’s Fig. 3(c): <strong>under 5 minutes, 5–15 minutes, over 15 minutes</strong>, compared against the paper’s public duration curves.</p>
+
+<p>Table 1 is the overall accuracy comparison; the remaining tables are slices from this evaluation.</p>
+
+<h2>4. Overall Results: Ahead of Peer Video-Reasoning Models</h2>
+
+<p>On MINERVA video reasoning, VLX-VR accuracy is <strong>78.8</strong>, above Seed2.1 / Gemini 3.5 in this comparison, and above Gemini 2.5 Pro Thinking (66.20) as published in the paper.</p>
+
+<p><strong>Table 1.</strong> MINERVA Video Reasoning accuracy. Scores are MCQ accuracy (%). VLX-VR is this evaluation; Seed2.1 Pro, Seed2.1 Turbo, and Gemini 3.5 are from the Seed site <a href="https://seed.bytedance.com/en/seed2_1">Seed2.1</a>; the rest are public MINERVA-paper results.</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">Model</th>
+<th scope="col">Score</th>
+</tr></thead><tbody>
+<tr>
+<td>VLX-VR</td>
+<td><strong>78.8</strong></td>
+</tr>
+<tr>
+<td>Seed2.1 Pro</td>
+<td>70.7</td>
+</tr>
+<tr>
+<td>Seed2.1 Turbo</td>
+<td>65.9</td>
+</tr>
+<tr>
+<td>Gemini 3.5</td>
+<td>68.6</td>
+</tr>
+<tr>
+<td>Gemini 2.5 Pro Thinking</td>
+<td>66.20</td>
+</tr>
+<tr>
+<td>Gemini 2.5 Flash Thinking</td>
+<td>57.30</td>
+</tr>
+<tr>
+<td>Gemini 2.0 Flash</td>
+<td>53.47</td>
+</tr>
+<tr>
+<td>Claude 3.5 Sonnet v2</td>
+<td>31.28</td>
+</tr>
+<tr>
+<td>GPT-4.1</td>
+<td>53.99</td>
+</tr>
+<tr>
+<td>GPT-4o</td>
+<td>45.54</td>
+</tr>
+<tr>
+<td>OpenAI o1</td>
+<td>43.48</td>
+</tr>
+<tr>
+<td>Qwen2.5-VL</td>
+<td>35.05</td>
+</tr>
+<tr>
+<td>VideoLLaMA3</td>
+<td>35.91</td>
+</tr>
+<tr>
+<td>InternVideo2.5</td>
+<td>35.18</td>
+</tr>
+<tr>
+<td>Random</td>
+<td>20.00</td>
+</tr>
+<tr>
+<td>Human</td>
+<td>92.54</td>
+</tr>
+</tbody></table></div>
+
+<p>This is 8.1 points above Seed2.1 Pro, 10.2 above Gemini 3.5, 12.9 above Seed2.1 Turbo, and 12.6 above Gemini 2.5 Pro Thinking in the paper. The gap is not “crushing short-video recognition”; it is better overall on a multi-step, multi-skill set that includes medium and long video. 78.8 is still below the human ceiling of 92.54, but it leads this comparison.</p>
+
+<h2>5. Duration Split: Long-Video Ability Holds</h2>
+
+<p>One of MINERVA’s values is duration span. Paper Fig. 3(c) splits videos into three bins: <strong>under 5 minutes, 5–15 minutes, over 15 minutes</strong>. Public models (Gemini 2.5 Pro Thinking, GPT-4.1, OpenAI o1, Claude 3.5 Sonnet v2) drop clearly as duration increases. This evaluation uses the same bins.</p>
+
+<p><strong>Table 2.</strong> Accuracy by video duration (same bins as paper Fig. 3(c)).</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">Video duration</th>
+<th scope="col">Accuracy</th>
+</tr></thead><tbody>
+<tr>
+<td>Under 5 minutes</td>
+<td>76.70%</td>
+</tr>
+<tr>
+<td>5–15 minutes</td>
+<td>78.73%</td>
+</tr>
+<tr>
+<td>Over 15 minutes</td>
+<td>80.92%</td>
+</tr>
+</tbody></table></div>
+
+<p>All three bins sit around 77–81%: 76.70% under 5 minutes; 78.73% in the middle bin; 80.92% over 15 minutes, rising rather than falling. The three-bin range is <strong>4.22</strong> percentage points.</p>
+
+<p><strong>Table 3.</strong> Duration split versus public models in the MINERVA paper (accuracy %). Paper-model numbers are digitized from the official Fig. 3(c) SVG; VLX-VR is Table 2. Qwen2.5-VL, VideoLLaMA3, and InternVideo2.5 from the paper are omitted (open-source lag; not used in this figure comparison).</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">Model</th>
+<th scope="col">Under 5 minutes</th>
+<th scope="col">5–15 minutes</th>
+<th scope="col">Over 15 minutes</th>
+</tr></thead><tbody>
+<tr>
+<td>VLX-VR</td>
+<td><strong>76.70</strong></td>
+<td><strong>78.73</strong></td>
+<td><strong>80.92</strong></td>
+</tr>
+<tr>
+<td>Gemini 2.5 Pro (Thinking)</td>
+<td>68.87</td>
+<td>66.84</td>
+<td>57.97</td>
+</tr>
+<tr>
+<td>GPT-4.1</td>
+<td>58.84</td>
+<td>54.79</td>
+<td>47.25</td>
+</tr>
+<tr>
+<td>OpenAI o1 (64f)</td>
+<td>48.28</td>
+<td>41.45</td>
+<td>40.38</td>
+</tr>
+<tr>
+<td>Claude 3.5 Sonnet v2</td>
+<td>40.90</td>
+<td>33.68</td>
+<td>28.30</td>
+</tr>
+</tbody></table></div>
+
+<p>On the short-video bin VLX-VR already exceeds Gemini 2.5 Pro (76.70 vs 68.87); beyond 15 minutes, Gemini falls to 58.0 and GPT-4.1 to 47.3, while VLX-VR rises to 80.92. That is a harder point than the overall 78.8: long video does not punch through the reasoning level.</p>
+
+<div class="image-container">
+<img src="images/vlx-vr/minerva_length_vlxvr.png" alt="MINERVA accuracy by duration: VLX-VR vs public models from the paper">
+<p><strong>Figure 1.</strong> MINERVA accuracy by duration. VLX-VR is the red diamond; others are closed-source counterparts from paper Fig. 3(c) (Human excluded; the three open-source models excluded).</p>
+</div>
+
+<p>To collapse “how duration affects accuracy” into one number, define <strong>Cross-Duration Accuracy Variance (CDAV)</strong>: equally weighted population variance of the three-bin accuracies</p>
+
+<div class="math-display">\[\mathrm{CDAV}=\frac{1}{n}\sum_{i=1}^{n}(\mathrm{Acc}_{i}-\overline{\mathrm{Acc}})^{2}\]</div>
+
+<p>where \(n=3\) and \(\mathrm{Acc}_{i}\) is in percentage points. The three-bin mean is 78.78%, <strong>CDAV = 2.97</strong> (percentage points\(^{2}\)), corresponding to a standard deviation of \(\sigma=1.72\) percentage points. The variance is still small, meaning accuracy does not swing hard when input duration switches among short / medium / long. The metric weights the three bins equally and is not weighted by item count.</p>
+
+<p>Conclusion: <strong>Duration has a small effect on VLX-VR’s overall level (CDAV = 2.97); the three bins stay in 77–81%, and the long-video bin is slightly higher.</strong> This differs from the paper’s picture of public models sliding with duration, and indicates VLX-VR can attach reasoning ability to medium and long video.</p>
+
+<h2>6. Task Types: Stronger on Events, Text, and Causality</h2>
+
+<p>Skill types follow MINERVA annotations. Under the overall 78.8% accuracy, advantages concentrate on textual cues, situation, and temporal/numerical reasoning.</p>
+
+<p><strong>Table 4.</strong> Accuracy by skill type.</p>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">Skill type</th>
+<th scope="col">Accuracy</th>
+</tr></thead><tbody>
+<tr>
+<td>Counting</td>
+<td>66.67%</td>
+</tr>
+<tr>
+<td>Object recognition</td>
+<td>82.01%</td>
+</tr>
+<tr>
+<td>Event occurrence</td>
+<td>82.81%</td>
+</tr>
+<tr>
+<td>Listening comprehension</td>
+<td>75.19%</td>
+</tr>
+<tr>
+<td>Temporal reasoning</td>
+<td>85.95%</td>
+</tr>
+<tr>
+<td>Reading comprehension</td>
+<td>90.76%</td>
+</tr>
+<tr>
+<td>Numerical reasoning</td>
+<td>85.71%</td>
+</tr>
+<tr>
+<td>Spatial perception</td>
+<td>73.47%</td>
+</tr>
+<tr>
+<td>Causal reasoning</td>
+<td>72.73%</td>
+</tr>
+<tr>
+<td>Counterfactual reasoning</td>
+<td>74.19%</td>
+</tr>
+<tr>
+<td>Situational awareness</td>
+<td>90.32%</td>
+</tr>
+<tr>
+<td>Goal reasoning</td>
+<td>76.92%</td>
+</tr>
+<tr>
+<td>State change</td>
+<td>69.23%</td>
+</tr>
+</tbody></table></div>
+
+<p><strong>Strengths.</strong> Reading comprehension 90.8%, situational awareness 90.3%, temporal reasoning 86.0%, numerical reasoning 85.7%, all clearly above overall; event occurrence 82.8% and object recognition 82.0% are also above overall. VLX-VR is better at chaining textual cues, situation, and temporal/numerical information into a complete reasoning chain.</p>
+
+<p><strong>Weaknesses.</strong> Counting, state change, causal reasoning, spatial perception, and similar skills remain below overall; counting is still the largest gap. Further work will continue here.</p>
+
+<h2>7. Reasoning-Process Evaluation</h2>
+
+<p>What sets MINERVA apart from VideoQA sets that only give a final answer is a human reasoning trace on every item. On <strong>correctly answered items</strong>, agreement between the model’s reasoning and the reference trace is <strong>96.2%</strong>.</p>
+
+<p>That rate is high: when the answer is correct, the model’s steps align strongly with the annotated trace, so the 78.8% accuracy has process support rather than mainly option guessing. This is VLX-VR’s advantage over video-QA setups that only emit a final answer.</p>
+
+<h2>8. Cases</h2>
+
+<h3>Under 5 minutes</h3>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">YouTube</th>
+<th scope="col">Duration</th>
+<th scope="col">Question</th>
+<th scope="col">Answer</th>
+<th scope="col">Correct answer</th>
+</tr></thead><tbody>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=-1UXq-FzmQA">https://www.youtube.com/watch?v=-1UXq-FzmQA</a></td>
+<td>~2 min 51 s</td>
+<td>What is the football broadcast's primary advertiser? (0) New England Savings. (1) FS1. (2) Quality Jewelers Sales &amp; Service. (3) Hammington Lumber Company. (4) Doritos.</td>
+<td>约 1分04秒，画面中央出现 Quality JEWELERS SALES &amp; SERVICE 品牌动画：白底、黑色花体字、蓝色钻石图标，标注珠宝销售与服务。这是全片唯一完整呈现的广告主动画。 其余文字都是场边广告牌或记分牌，不是转播主打广告：约 1分处远处记分牌有 LEADBETTER'S TAILGATE LOT；约 1分21秒–1分34秒场边围挡出现 Maine Savings（不是选项里的 New England Savings）；约 1分05秒–1分11秒是 VILLANOVA vs MAINE 比分牌。 FS1、Hammington Lumber Company、Doritos、New England Savings 均未出现。因此本场橄榄球转播的主要广告主是 Quality Jewelers Sales &amp; Service。 最终答案：Quality Jewelers Sales &amp; Service.</td>
+<td>Quality Jewelers Sales &amp; Service.</td>
+</tr>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=--C26cvIFdY">https://www.youtube.com/watch?v=--C26cvIFdY</a></td>
+<td>~4 min 26 s</td>
+<td>What sequence of events occur to put Hawaii up 24 to 13 against UC Irvine? (0) #4 in white dribbles the ball down court then passes it to #10 in white who dunks the ball. (1) #0 in white inbounds the ball to #4 in white who then makes an immediate fadeaway. (2) #4 in white gets the rebound and passes it to #0 in white who then makes a 3 point shot. (3) #4 in white steals the ball and dribbles down court before making a dunk. (4) #10 in white steals the ball and passes it to #4 in white who makes a layup.</td>
+<td>约 1分–2分出现对阵 UC Irvine 的集锦。记分牌依次为 UC IRVINE 13 - HAWAII 17（约 1分34秒，首节剩 2:12）、13-21（约 1分40秒，首节剩 1:16），随后切到 17-28。 约 1分34秒–1分39秒：夏威夷球员欧洲步上篮，没有扣篮、抢断或后仰跳投。 约 1分40秒–1分49秒（字幕 REBOUND &amp; TRANSITION）：UC Irvine 投篮不中 → 白队 4 号抢到防守篮板 → 运球推进，经 25 号中转后传给三分线外的白队 0 号 → 0 号三分命中。这一记把夏威夷得分从 21 打到 24，形成 24-13。记分牌更新略有延迟。 该时段没有扣篮（女子比赛），也没有 0 号发球给 4 号后仰跳投、4 号抢断后扣篮、10 号抢断传 4 号上篮。把比分打到 24-13 的序列是：4 号抢篮板，传给 0 号，0 号投进三分。 最终答案：#4 in white gets the rebound and passes it to #0 in white who then makes a 3 point shot.</td>
+<td>#4 in white gets the rebound and passes it to #0 in white who then makes a 3 point shot.</td>
+</tr>
+</tbody></table></div>
+
+<h3>5–15 minutes</h3>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">YouTube</th>
+<th scope="col">Duration</th>
+<th scope="col">Question</th>
+<th scope="col">Answer</th>
+<th scope="col">Correct answer</th>
+</tr></thead><tbody>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=-5Uz0Pz-mI0">https://www.youtube.com/watch?v=-5Uz0Pz-mI0</a></td>
+<td>~6 min 51 s</td>
+<td>Which team has the first fast break of the game? (0) Marvin Tepper. (1) Yannik Baier. (2) There are no fast breaks. (3) Bulls. (4) Indians.</td>
+<td>开场对阵图（约 7 秒）显示本场为 Saale Bulls（主场，红黑队服）对 EC Hannover Indians（白色/红蓝队服），场馆是 Halle/Saale 的 Sparkassendom。 开场争球后，第一次端到端快速反击发生在约 27 秒：白队 Indians 的 9 号在本方防守区得球，带球冲过全场，约 32 秒攻入对方区域，约 42 秒射门被 Bulls 门将扑出，约 56 秒球门前发生冲突、裁判介入。此前红黑队没有更快的反击，只有开球、争抢和传射。 因此第一次快攻由 Indians 发起。Marvin Tepper、Yannik Baier 是球员名，不是队伍层面的答案；也不是「没有快攻」，更不是 Bulls。 最终答案：Indians.</td>
+<td>Indians.</td>
+</tr>
+</tbody></table></div>
+
+<h3>Over 15 minutes</h3>
+
+<div class="table-scroll"><table>
+<thead><tr>
+<th scope="col">YouTube</th>
+<th scope="col">Duration</th>
+<th scope="col">Question</th>
+<th scope="col">Answer</th>
+<th scope="col">Correct answer</th>
+</tr></thead><tbody>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=FUJYcbCZFeI">https://www.youtube.com/watch?v=FUJYcbCZFeI</a></td>
+<td>~16 min 07 s</td>
+<td>How many lightbulbs appear on the screen at 00:13? (0) 8. (1) 10. (2) 6. (3) 1. (4) 13.</td>
+<td>灯泡特效出现在视频开头。约 12.8 秒开始出现灯泡图形；恰好 00:13（约 13.0 秒）这一帧，屏幕上共有 8 个灯泡：6 个处于渐显、只露出一部分，2 个已经完全明亮。 题目问的是该时刻屏幕上出现多少个灯泡，应按画面里渲染出来的全部灯泡图形计数，而不是只数点亮的那 2 个。因此是 8，不是 10、6、1 或 13。 最终答案：8.</td>
+<td>8.</td>
+</tr>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=vbUlJr1s7qU">https://www.youtube.com/watch?v=vbUlJr1s7qU</a></td>
+<td>~39 min 23 s</td>
+<td>How many rocks would be in the "Africa Rocks" sign if 3 were subtracted? (0) 5. (1) 3. (2) 4. (3) 1. (4) 2.</td>
+<td>约 22分14秒–22分24秒出现景观标识牌 CONRAD PREBYS AFRICA ROCKS：上方棕色底白字 CONRAD PREBYS，下方立体字 AFRICA（深蓝黑）与 ROCKS（亮蓝）。两个单词之间堆叠着 4 块彩色装饰岩石，自上而下为红棕色小石块、浅橄榄绿色扁平大石块、红棕色/灰紫色椭圆石块、浅棕黄色圆石块。 上方 CONRAD PREBYS 旁另有一块带蜗牛造型的浅绿石块，不属于两词之间的装饰序列，不计入本题。 牌上岩石为 4 块，减去 3 块还剩 1 块。 最终答案：1.</td>
+<td>1.</td>
+</tr>
+<tr>
+<td><a href="https://www.youtube.com/watch?v=WmpPEoBp48A">https://www.youtube.com/watch?v=WmpPEoBp48A</a></td>
+<td>~90 min 03 s</td>
+<td>What object surrounds the avatar of the second grandmaster the host introduces? (0) Curved daggers. (1) Golden Laurel. (2) Shark teeth. (3) Green wreath. (4) Garland of Roses.</td>
+<td>主播开头依次点开玩家资料页介绍： - 约 77 秒：Brilliant Frog of White Meadow（双项 Grandmaster），头像环绕金色月桂花环——这是第 1 位宗师，也是干扰项 Golden Laurel 的出处。 - 约 1分51秒：Lina Kitty（Expert / Grandmaster），头像环绕鲨鱼齿边框（银色尖牙、紫色基底、粉色丝带）——按介绍顺序是第 2 位宗师。 - 约 2分18秒：HudsonHornet250，翼状边框。 - 约 2分45秒：Sir Tyler，紫色尖刺维京风格边框。 - 约 4分：Dignia22（双项 Grandmaster），同样是银色鲨鱼齿边框。 - 约 4分47秒：General Bains 15708（非宗师），翼状边框。 按介绍顺序，第二位宗师是 Lina Kitty，头像环绕物是鲨鱼齿。即便按「两项都是 Grandmaster」计，第二位是 Dignia22，环绕物仍是鲨鱼齿。金色月桂属于第一位宗师；绿色花环、玫瑰花环、弯匕首都没有出现在第二位宗师头像上。 最终答案：Shark teeth.</td>
+<td>Shark teeth.</td>
+</tr>
+</tbody></table></div>
+
+<h2>9. Conclusion and Next Steps</h2>
+
+<p>On MINERVA, VLX-VR reaches 78.8 video-reasoning accuracy, above Seed2.1 and Gemini 3.5 in this comparison. With the paper’s same three bins (under 5 minutes / 5–15 minutes / over 15 minutes) the split is 76.70% / 78.73% / 80.92%, CDAV = 2.97; public models in the paper slide with duration, VLX-VR does not, and the long-video bin is slightly higher. Reasoning agreement on correctly answered items is 96.2%, so correct results have process support. By skill type, reading comprehension, situational awareness, temporal reasoning, and numerical reasoning are clearly more stable. Counting, state change, causal reasoning, spatial perception, and similar skills still have room; further work will continue here.</p>
+    </main>
+</body>
+</html>
