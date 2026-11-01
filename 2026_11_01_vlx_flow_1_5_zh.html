@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLX-Flow 1.5：面向端侧实时流式视频的主动响应增强</title>
+    <meta name="description" content="VLX-Flow 1.5 面向端侧流式视频增强主动响应：事件触发与静默控制更准确，持续描述更连贯，实时问答更重视觉依据，推理效率更高。">
+    <link rel="canonical" href="https://om-ai-lab.github.io/2026_11_01_vlx_flow_1_5_zh.html">
+    <link rel="alternate" hreflang="en" href="https://om-ai-lab.github.io/2026_11_01_vlx_flow_1_5_en.html">
+    <link rel="alternate" hreflang="zh-CN" href="https://om-ai-lab.github.io/2026_11_01_vlx_flow_1_5_zh.html">
+    <meta property="og:title" content="VLX-Flow 1.5：面向端侧实时流式视频的主动响应增强">
+    <meta property="og:description" content="一句常驻指令，模型持续观察、保持静默，在目标事件出现时及时主动响应。">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://om-ai-lab.github.io/2026_11_01_vlx_flow_1_5_zh.html">
+    <meta property="og:image" content="https://om-ai-lab.github.io/images/vlx-flow/vlx-flow-overview.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="css/blog-styles.css">
+</head>
+<body>
+    <nav>
+        <a href="index.html">返回博客索引</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_11_01_vlx_flow_1_5_en.html" lang="en">English</a>
+        <span class="nav-separator">·</span>
+        <a href="2026_06_26_vlx_flow_zh.html">VLX-Flow</a>
+        <span class="nav-separator">·</span>
+        <a href="https://github.com/om-ai-lab/VLX-Flow">GitHub</a>
+        <span class="nav-separator">·</span>
+        <a href="https://huggingface.co/blog/omlab/vlx-flow">Hugging Face</a>
+    </nav>
+
+    <header>
+        <h1>VLX-Flow 1.5：面向端侧实时流式视频的主动响应增强</h1>
+        <p><em>发布于 2026年11月1日</em></p>
+    </header>
+
+    <main>
+        <h2>亮点</h2>
+        <ul>
+            <li><strong>🌊 流式持续理解：</strong>视频以连续片段持续输入，双层记忆增量更新，Linear Attention 的可递推状态保留历史信息——无需重看历史视频，长时间运行下，首 token 延迟与显存占用保持平稳。</li>
+            <li><strong>💬 更强的主动响应：</strong>一句自然语言常驻指令，模型持续观察、保持静默，目标事件出现后第一时间主动响应；静默与响应时机的配合更稳定，重复输出更少。</li>
+            <li><strong>🎬 更连贯的持续描述：</strong>跨片段语义衔接让长时描述不断裂、不复读，更能紧跟画面变化，可为具身应用提供连贯的环境语义。</li>
+            <li><strong>🔍 更少的交互幻觉：</strong>回答与主动响应均以画面证据为依据，信息不足时合理拒答，减少无依据的推测与事件误触发，让端侧持续交互更可信。</li>
+            <li><strong>🚀 更高的推理效率：</strong>增量更新与缓存状态复用免去历史视频的重复计算，静默控制减少冗余输出 token 与解码开销，更适合对时延和算力敏感的端侧部署。</li>
+        </ul>
+
+        <h2>摘要</h2>
+        <p>VLX-Flow 是面向实时视频的端侧流式多模态模型，可在端侧设备上提供持续在线的视频理解能力。模型以<strong>连续视频输入、增量状态更新与持续记忆</strong>为核心，将不断到来的视频画面转化为可复用的语义上下文。在这套流式架构下，模型能够持续描述视频内容，结合已有观察响应实时提问，并根据自然语言指令主动响应关注的事件，让视频理解贯穿交互发生前后的完整过程。</p>
+        <p>在上一代 Flow 模型的基础上，VLX-Flow 1.5 在主动响应、持续描述与实时问答方面进行了增强：主动响应围绕事件触发与静默控制进行优化，行为更节制、重复输出更少；持续描述更连贯、更及时；实时问答更注重视觉依据，信息不足时合理拒答。更节制的输出与更低的生成开销，让这三项能力在端侧设备的长时间运行中配合得更自然、也更可信。</p>
+
+        <h2>1. VLX-Flow：以流式架构支撑持续视频理解</h2>
+        <p>摄像头持续采集，机器人不断移动，屏幕内容实时变化。面向这些输入，流式视频理解需要在画面到达时就开始，并在用户提问或目标事件出现时，及时调用此前积累的信息。<strong>流式视频理解的核心，是将随时间到达的视频信息，持续转化为可更新、可复用的模型状态。</strong>输入、记忆与交互由此建立连续的时间联系，模型在每次响应时都能够接续已有的观察上下文。</p>
+        <p>围绕这一目标，上一代 Flow 模型建立了<strong>增量视觉编码与状态递推相结合的流式推理架构</strong>：视频以连续片段按时间顺序进入模型，视觉编码器提取当前片段特征，语言主干结合已有状态完成增量推理，无需重看历史视频。<strong>双层记忆机制</strong>持续维护观察结果——<strong>视觉缓存</strong>保留近期画面细节，<strong>语义记忆</strong>沉淀交互历史；语言主干中的 <strong>Linear Attention（线性注意力）模块</strong>以可递推状态聚合历史信息，让持续运行中的响应延迟与显存占用保持可控。</p>
+        <p>在这套流式上下文上，<strong>主动响应、持续描述与实时问答</strong>构成三种相互衔接的交互方式：持续描述随视频推进表达场景变化，实时问答结合已有记忆响应随时到来的提问，主动响应依据用户指令持续观察、在目标事件出现时主动开口。三项能力共同体现了 Flow 的流式特征：观察持续进行，状态增量更新，交互随时发生。VLX-Flow 1.5 延续这一架构基础，进一步提升连续理解的表达质量、实时推理效率和交互行为的可靠性，让流式状态更有效地支撑这三项能力。</p>
+
+        <h2>2. VLX-Flow 1.5：三个方向的能力增强</h2>
+
+        <h3>2.1 主动响应：从被动回答到主动开口</h3>
+        <p>传统主流视频模型是被动接口：一次输入、一次回答，问什么答什么。要用它“盯”住一件事，只能靠应用层轮询——每隔几秒截一段视频，重复问一遍“画面里出现目标了吗”。这套变通的代价不小：每一轮都是一次独立调用，频率低了会漏掉事件，频率高了则把算力浪费在大量“还没有”的回答上；而去重、节流、事件边界这些状态管理，轮询本身并不提供——都得应用层自己维护，稍有不慎，同一事件就会被反复报告。“盯”这件事，实际上被外包给了外部的调度逻辑。</p>
+        <p>对端侧设备，这套变通尤其不合适：算力与功耗本来就受限，轮询的重复推理是纯开销；而值守类应用真正需要的是“平时低开销、关键时刻及时响应”。主动响应把“盯”收回模型自身：用户用一句自然语言常驻指令设定关注的目标事件，此后模型持续观察视频流，在事件出现时主动开口，无需反复询问。视频应用的形态随之改变——摄像头从被动记录变为按任务值守，机器人能够把环境中值得注意的变化主动上报；设备负责持续观察，人只需在被提醒时处理真正需要处理的事。</p>
+        <p>这项能力的难点在“时机”。上一代 Flow 模型已经具备事件触发式交互的基础，但触发的稳定性与输出的节制仍有提升空间：相似画面被误判为目标、同一事件被反复输出。同类型的其他流式视频模型的问题则更根本：有的持续输出难以安静，有的把常驻指令当作一次性提问、在证据出现之前就抢着作答，还有一些则需要用户不断下发指令，才能维持流式监控。对值守任务来说，早报、误报与漏报都会让主动响应失去价值——时机不对，回复的内容再流畅也不可信。</p>
+        <p>VLX-Flow 1.5 围绕<strong>指令条件下的事件判断与时序响应策略</strong>进行优化，加强视觉证据、指令条件与响应时机之间的对应：模型综合指令要求、当前视觉证据与已有回复记录，判断此刻应继续观察、主动响应，还是在一次回复之后恢复静默、等待下一次符合条件的事件。事件识别与输出时机的配合更稳定，重复输出更少，输出更集中于用户关注的信息，主动行为与持续视频流的节奏更加协调。</p>
+        <p>例如，用户向办公室摄像头输入“画面里出现穿黑色外套的人就告诉我”，然后离开座位。接下来的人来人往与光线变化中，模型保持静默观察；目标出现的那一刻，没有人提问，模型主动响应，随后恢复静默。</p>
+        <div class="image-container">
+            <img src="images/vlx-flow-1.5/proactive-response-zh.png" alt="常驻指令下的主动响应：静默观察、目标出现、及时响应、恢复静默">
+            <p>常驻指令下达后，模型持续观察；目标事件出现后，及时主动响应，然后恢复静默，等待后续符合条件的事件。</p>
+        </div>
+        <p>支撑这些改善的一个重要训练方向，是<strong>面向连续交互的流式行为监督</strong>。在已有的流式监督微调体系上，VLX-Flow 1.5 将响应内容与逐轮交互状态对齐，显式监督当前是否满足指令条件、是否已回复过、是否应继续观察。<strong>静默判断的准确性与主动响应的及时性，同样是模型训练时的重要监督指标</strong>：在无需回复时保持静默状态，是模型正确执行任务的一部分；需要响应时的及时回复，则保证主动能力不会因减少输出而失去有效性。</p>
+        <p>在行为监督之上，主动响应还需要一种更贴近任务本身的优化方式：“何时开口”是逐轮的序列决策，很难为每种画面与指令的组合预先标注标准答案。为此，配套的后训练体系基于 <strong>VLM-R1 的多模态强化学习范式</strong>，构建了面向连续视频的<strong>流式强化学习（Streaming RL）流程</strong>：模型在完整流式回合中按时间顺序逐轮生成，并将已生成的交互历史带入后续决策，由奖励信号评价整段行为，而不是孤立地评价每一次输出。奖励设计覆盖主动行为的三个要素：语义质量评估考察回复内容是否与画面一致；事件时序奖励对齐触发时刻——事件出现前抢答受到抑制，事件窗口内的及时回复获得强化，已报告后的重复输出被明确惩罚，合理等待与错过事件也被区分对待；轨迹对比：同一条视频流的多种响应轨迹相互比较，进一步降低对绝对评分的依赖。由此，优化目标从“答得对”延伸到“在正确的时刻说正确的话”，为主动响应与静默控制提供定向强化，进一步增强了主动响应模式下的指令遵循能力以及事件触发的响应及时性。</p>
+
+        <h3>2.2 持续描述：增强时序连贯性，提升实时响应</h3>
+        <p>持续描述是流式理解的基础能力：模型随着视频推进，接续讲述场景、主体、动作与事件的变化。它既是用户直接感知的输出，也是语义上下文记忆的来源之一。在端侧具身场景中，持续描述可以有效提供持续更新的环境语义：具身智能设备据此理解环境变化，屏幕助手与摄像头应用据此提供连续讲解。</p>
+        <p>长时描述的难点，在于“连贯”与“不重复”。上一代 Flow 模型已经支持随视频推进的连续表达，但在更长的视频流中，片段之间仍会出现叙述割裂与重复表述；同类流式模型的这一问题更加明显，常见的失败形态要么是同一段内容反复复读，要么是输出碎成不成句的词语流。对需要长时间稳定运行的端侧设备来说，割裂的描述让语义历史难以引用，重复的输出则带来无意义的生成开销——这也是持续描述必须继续提升的原因。</p>
+        <p>VLX-Flow 1.5 通过强化<strong>跨片段语义衔接</strong>、辅以时间递推的记忆监督，增强了这一点：模型结合此前的场景状态描述当前变化，让“谁在继续做什么”“物体位置如何变化”“此前的事件是否还在发展”这条时间线在长视频流中不断裂、不复读。例如，一个人拿起杯子、走向桌边再放下杯子，这条动作链路在流式上下文中保持关联，用户随后追问“刚才他把什么放在桌上”，模型可以直接作答。更连贯、更及时的持续描述，让长时讲解、第一视角观察和屏幕内容理解更接近一位紧盯画面的实时解说，也为端侧设备提供了可靠的环境语义基础。</p>
+
+        <h3>2.3 实时问答：强化视觉依据，减少无依据回答</h3>
+        <p>实时问答让用户在观看过程中随时提问，模型基于已经看到的画面直接作答，无需回头重看录像。看视频时，用户可以随时确认画面细节；值守巡检时，问题往往在事件发生后才被提出——无论哪一种，回答都只能建立在已经观察到的内容上。也正因为如此，回答必须有依据：一个缺乏依据的回答，可能直接影响用户对现场情况的判断。</p>
+        <p>难点在于，用户的问题并不保证在已观察的画面中有依据，被问到的事物可能根本没有出现在视频内容里。模型必须依据已有观察作答，也就必须准确区分“看到了什么”与“没有看到什么”。上一代 Flow 模型在多数情况下能够依据观察作答，但面对画面中不存在的事物，仍可能给出一个“看起来合理”的答案，而不是承认没有看到；同类流式模型在持续输出的压力下，无依据的描述与抢答更为常见。对端侧与具身应用来说，这类“自信的编造”比坦率的“没看见”危害更大——它会把错误判断传递给后续的决策。</p>
+        <p>VLX-Flow 1.5 强化问答的视觉依据约束，让模型更注重区分已观察到的事实与尚无充分依据的信息。例如，用户对一段街景提问“刚才那艘船往哪边开？”，如果已观察的画面中没有出现船，模型会指出“在已观察的画面中没有看到船”；对无法确认的内容，也会适当说明不确定性。通过更好地划分何时作答、何时拒答，模型在保留正常问答能力的同时，减少缺乏视觉依据的推测——校准的是“有没有依据”，而不是“少说话”。</p>
+
+        <h2>3. 评测表现：公开基准对照</h2>
+        <p>我们在三条公开的流式视频基准上检验 VLX-Flow 1.5：<strong><a href="https://streamingbench.github.io/">StreamingBench</a></strong> 考察模型对实时到达画面的理解，其 Real-Time Visual 任务部分覆盖物体识别、因果推理、计数等十类任务；<strong><a href="https://joeleelyf.github.io/OVO-Bench/">OVO-Bench</a></strong> 从回溯（回忆已看到的画面）、实时（理解正在发生的画面）、前看（指令给定后等待目标在后续画面中出现、证据充分后及时作答）三个时间视角考察在线视频理解；<strong><a href="https://github.com/om-ai-lab/trace-bench">TraceBench</a></strong> 专门考察流式交互行为，覆盖实时问答与常驻指令下的主动响应，同时记录延迟、token 消耗、完成率等性能指标。以下对照模型的分数汇总自各基准的官方榜单与论文。其中 StreamingBench 和 OVO-Bench 采用和官方对齐的流式方式测评，对齐测评中，VLX-Flow 1.5 的问答模式为每道题平均查看 64 帧。</p>
+
+        <p>表 1. StreamingBench Real-Time Visual：整体与逐任务。任务列：OP=物体识别、CR=因果推理、CS=片段总结、ATP=属性识别、EU=事件理解、TR=画面文字理解、PR=前瞻推理、SU=空间理解、ACP=动作识别、CT=计数。</p>
+        <table>
+            <thead>
+                <tr><th>Model</th><th>Overall</th><th>OP</th><th>CR</th><th>CS</th><th>ATP</th><th>EU</th><th>TR</th><th>PR</th><th>SU</th><th>ACP</th><th>CT</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>VLX-Flow 1.5</strong></td><td><strong>85.00</strong></td><td><strong>91.83</strong></td><td>86.72</td><td>92.11</td><td><strong>91.18</strong></td><td><strong>85.71</strong></td><td><strong>94.70</strong></td><td>83.33</td><td><strong>76.83</strong></td><td><strong>82.44</strong></td><td>48.70</td></tr>
+                <tr><td>AURA</td><td>83.20</td><td>87.5</td><td>84.4</td><td><strong>93.4</strong></td><td>89.5</td><td>83.2</td><td>87.9</td><td><strong>86.1</strong></td><td>76.4</td><td>82.4</td><td>47.7</td></tr>
+                <tr><td>MOSS-VL-Realtime</td><td>82.90</td><td>86.6</td><td>81.8</td><td>87.9</td><td>87.5</td><td>84.7</td><td>82.4</td><td>83.3</td><td>75.3</td><td>80.6</td><td>52.1</td></tr>
+                <tr><td>MiniCPM-o 2.6</td><td>79.88</td><td>85.01</td><td>85.94</td><td>89.91</td><td>85.95</td><td>80.12</td><td>86.60</td><td>76.85</td><td>74.80</td><td>74.79</td><td>46.11</td></tr>
+                <tr><td>MiniCPM-o 4.5</td><td>78.20</td><td>80.9</td><td><strong>88.3</strong></td><td>82.0</td><td>85.0</td><td>78.9</td><td>85.4</td><td>78.7</td><td>67.1</td><td>75.6</td><td>56.0</td></tr>
+                <tr><td>Gemini 1.5 Pro</td><td>77.39</td><td>83.43</td><td>77.94</td><td>89.24</td><td>81.65</td><td>79.17</td><td>83.92</td><td>83.93</td><td>60.32</td><td>74.87</td><td>49.22</td></tr>
+                <tr><td>InternLM-XC2.5-OL</td><td>75.36</td><td>84.74</td><td>79.69</td><td>83.91</td><td>87.91</td><td>75.78</td><td>80.06</td><td>67.59</td><td>65.85</td><td>70.25</td><td>38.34</td></tr>
+                <tr><td>GPT-4o</td><td>74.54</td><td>80.66</td><td>76.98</td><td>86.67</td><td>73.81</td><td>75.95</td><td>85.48</td><td>75.00</td><td>70.66</td><td>65.99</td><td>43.09</td></tr>
+                <tr><td>StreamAgent</td><td>74.30</td><td>79.6</td><td>78.3</td><td>79.3</td><td>75.9</td><td>74.7</td><td>76.9</td><td>82.9</td><td>66.3</td><td>73.7</td><td>55.4</td></tr>
+                <tr><td>LLaVA-OneVision-7B</td><td>74.27</td><td>82.83</td><td>77.34</td><td>83.23</td><td>83.33</td><td>72.05</td><td>74.77</td><td>73.15</td><td>68.29</td><td>71.10</td><td>41.97</td></tr>
+                <tr><td>Qwen3-VL-8B-Inst</td><td>74.10</td><td>80.1</td><td>76.6</td><td>81.1</td><td>81.1</td><td>77.0</td><td>73.2</td><td>80.6</td><td>63.4</td><td>68.8</td><td><strong>57.0</strong></td></tr>
+                <tr><td>Claude 3.5 Sonnet</td><td>74.04</td><td>82.45</td><td>73.77</td><td>82.43</td><td>82.40</td><td>76.39</td><td>85.56</td><td>61.68</td><td>60.73</td><td>67.88</td><td>47.62</td></tr>
+                <tr><td>MiniCPM-V 2.6</td><td>72.43</td><td>78.20</td><td>71.88</td><td>84.18</td><td>83.99</td><td>75.16</td><td>75.39</td><td>72.22</td><td>56.50</td><td>67.14</td><td>47.15</td></tr>
+                <tr><td>Qwen2-VL-7B</td><td>71.15</td><td>75.75</td><td>79.69</td><td>76.58</td><td>79.08</td><td>74.53</td><td>75.08</td><td>74.07</td><td>65.85</td><td>65.16</td><td>41.97</td></tr>
+                <tr><td>VITA-1.5</td><td>70.88</td><td>77.66</td><td>82.81</td><td>82.33</td><td>79.34</td><td>72.67</td><td>71.34</td><td>67.59</td><td>62.20</td><td>69.12</td><td>32.12</td></tr>
+                <tr><td>ViSpeak</td><td>70.40</td><td>79.8</td><td>71.1</td><td>81.4</td><td>78.8</td><td>74.5</td><td>70.1</td><td>63.9</td><td>64.2</td><td>71.4</td><td>28.0</td></tr>
+                <tr><td>InternVL2-8B</td><td>70.11</td><td>73.84</td><td>65.63</td><td>78.80</td><td>82.03</td><td>71.43</td><td>72.90</td><td>73.15</td><td>63.01</td><td>65.44</td><td>42.49</td></tr>
+                <tr><td>LLaVA-NeXT-Video-32B</td><td>69.83</td><td>80.11</td><td>71.09</td><td>80.70</td><td>80.72</td><td>71.43</td><td>73.21</td><td>62.96</td><td>59.35</td><td>63.17</td><td>36.79</td></tr>
+                <tr><td>Kangaroo</td><td>65.76</td><td>77.57</td><td>74.22</td><td>75.70</td><td>74.38</td><td>70.91</td><td>62.86</td><td>52.63</td><td>50.54</td><td>63.97</td><td>33.16</td></tr>
+                <tr><td>LongVA</td><td>63.11</td><td>73.02</td><td>66.41</td><td>66.46</td><td>74.84</td><td>65.22</td><td>62.93</td><td>60.19</td><td>56.91</td><td>56.66</td><td>37.82</td></tr>
+                <tr><td>VILA-1.5</td><td>61.54</td><td>71.12</td><td>57.81</td><td>74.68</td><td>72.22</td><td>70.81</td><td>62.62</td><td>51.85</td><td>51.22</td><td>60.34</td><td>18.65</td></tr>
+                <tr><td>Video-CCAM-14B</td><td>53.42</td><td>54.50</td><td>63.28</td><td>73.73</td><td>63.73</td><td>57.76</td><td>47.35</td><td>50.93</td><td>41.87</td><td>48.44</td><td>26.94</td></tr>
+                <tr><td>VideoLLaMA 2</td><td>52.58</td><td>59.95</td><td>60.16</td><td>62.97</td><td>60.46</td><td>54.66</td><td>46.11</td><td>41.67</td><td>46.75</td><td>48.16</td><td>34.72</td></tr>
+            </tbody>
+        </table>
+        <p>在该榜单中，VLX-Flow 1.5 得到 85.00，比 AURA（83.20）与 MOSS-VL-Realtime（82.90）分别高出约 1.8 与 2.1 个百分点，比 MiniCPM-o 2.6（79.88）高约 5.1 个百分点。逐任务上，VLX-Flow 1.5 在 OP 物体识别、ATP 属性识别、EU 事件理解、TR 画面文字理解等任务上表现最好，ACP 动作识别、CR 因果推理、CS 片段总结、SU 空间理解同样位居前列；相对弱项为 CT 计数，可能与流式推理方式有关，后续会持续优化。</p>
+
+        <p>表 2. OVO-Bench（%）：三组与 Overall。BT=回溯、RTVP=实时、FAR=前看，All 为三组宏平均。</p>
+        <table>
+            <thead>
+                <tr><th>Model</th><th>BT</th><th>RTVP</th><th>FAR</th><th>All</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>VLX-Flow 1.5</strong></td><td><strong>78.39</strong></td><td>79.54</td><td>53.60</td><td><strong>70.51</strong></td></tr>
+                <tr><td>MOSS-VL-Realtime</td><td>72.60</td><td>75.90</td><td><strong>62.10</strong></td><td>70.20</td></tr>
+                <tr><td>AURA</td><td>60.40</td><td><strong>79.80</strong></td><td>55.80</td><td>65.30</td></tr>
+                <tr><td>Gemini 1.5 Pro</td><td>62.54</td><td>69.32</td><td>57.15</td><td>63.00</td></tr>
+                <tr><td>MiniCPM-o 4.5</td><td>55.90</td><td>67.30</td><td>55.90</td><td>59.70</td></tr>
+                <tr><td>GPT-4o</td><td>60.75</td><td>64.46</td><td>53.40</td><td>59.54</td></tr>
+                <tr><td>ViSpeak</td><td>57.50</td><td>66.30</td><td>54.20</td><td>59.30</td></tr>
+                <tr><td>Streamo-7B</td><td>49.20</td><td>67.40</td><td>57.00</td><td>57.90</td></tr>
+                <tr><td>Qwen2-VL-72B</td><td>56.95</td><td>61.92</td><td>49.30</td><td>56.27</td></tr>
+                <tr><td>GPT-4.1</td><td>56.85</td><td>60.15</td><td>47.53</td><td>54.85</td></tr>
+                <tr><td>LLaVA-Video-7B</td><td>40.40</td><td>63.52</td><td>54.82</td><td>52.91</td></tr>
+                <tr><td>LLaVA-OneVision-7B</td><td>43.71</td><td>64.02</td><td>50.50</td><td>52.74</td></tr>
+                <tr><td>Gemini 1.5 Flash</td><td>57.98</td><td>57.20</td><td>42.86</td><td>52.68</td></tr>
+                <tr><td>Qwen2-VL-7B</td><td>46.46</td><td>55.98</td><td>48.74</td><td>50.39</td></tr>
+                <tr><td>InternVL-V2-8B</td><td>43.44</td><td>60.39</td><td>46.60</td><td>50.15</td></tr>
+                <tr><td>StreamAgent</td><td>41.70</td><td>61.30</td><td>45.40</td><td>49.40</td></tr>
+                <tr><td>Qwen3-VL-8B-Inst.</td><td>41.00</td><td>61.60</td><td>37.70</td><td>46.80</td></tr>
+                <tr><td>LongVU-7B</td><td>35.01</td><td>57.61</td><td>47.50</td><td>46.71</td></tr>
+                <tr><td>Dispider-7B</td><td>36.06</td><td>54.55</td><td>34.72</td><td>41.78</td></tr>
+                <tr><td>Llama-3.2-11B-VL-Instruct</td><td>41.07</td><td>49.79</td><td>33.55</td><td>41.47</td></tr>
+                <tr><td>Stream-LLM-v1.5-7B</td><td>35.38</td><td>38.05</td><td>29.68</td><td>34.37</td></tr>
+                <tr><td>Flash-VStream-7B</td><td>27.38</td><td>28.37</td><td>45.09</td><td>33.61</td></tr>
+                <tr><td>VideoLLM-Online-8B</td><td>17.73</td><td>20.79</td><td>—</td><td>—</td></tr>
+                <tr><td>Human</td><td>92.33</td><td>93.20</td><td>92.90</td><td>92.81</td></tr>
+            </tbody>
+        </table>
+        <p>在三组宏平均（Overall）上，VLX-Flow 1.5 为 70.51，高于 AURA 的 65.30 约 5.2 分、Gemini 1.5 Pro 的 63.00 约 7.5 分，与 MOSS-VL-Realtime 的 70.20 表现相近。分组看：回溯（BT）78.39 为所列模型中最高，次高为 MOSS-VL-Realtime 的 72.60；实时（RTVP）79.54 与 AURA 的 79.80 表现相近；前看（FAR）53.60 与 GPT-4o 持平，相比其他流式视频模型仍偏低，是三组中相对最弱的一组，也是下一阶段的明确目标。</p>
+
+        <p>表 3. TraceBench v1.1。</p>
+        <table>
+            <thead>
+                <tr><th>Model</th><th>QA Accuracy ↑ (%)</th><th>QA Completion ↑ (%)</th><th>Response Latency ↓ (ms)</th><th>In-window Accuracy ↑ (%)</th><th>Median Response Delay ↓ (s)</th><th>False-alarm Rate ↓ (%)</th><th>Miss Rate ↓ (%)</th><th>Invalid Output ↓ (%)</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>VLX-Flow 1.5</strong></td><td><strong>76.5</strong></td><td><strong>100.0</strong></td><td>560</td><td><strong>21.1</strong></td><td>0.34</td><td>63.9</td><td>20.3</td><td>4.1</td></tr>
+                <tr><td>MOSS-VL</td><td>75.03</td><td>99.88</td><td>374.6</td><td>8.05</td><td>0.33</td><td><strong>41.1</strong></td><td>47.24</td><td>0.84</td></tr>
+                <tr><td>AURA</td><td>73.83</td><td>99.88</td><td>819.7</td><td>7.92</td><td>1.15</td><td>59.1</td><td>47.64</td><td>0.60</td></tr>
+                <tr><td>LiveCC</td><td>65.19</td><td>93.88</td><td>165.2</td><td>12.98</td><td>1.08</td><td>65.0</td><td><strong>0.31</strong></td><td>6.12</td></tr>
+                <tr><td>MOSS-Preview</td><td>65.07</td><td><strong>100</strong></td><td><strong>138.1</strong></td><td>4.45</td><td><strong>0.20</strong></td><td>77.7</td><td>35.67</td><td>1.92</td></tr>
+                <tr><td>ThinkStream</td><td>61.46</td><td><strong>100</strong></td><td>411</td><td>0.52</td><td>2.14</td><td>73.6</td><td>68.43</td><td><strong>0</strong></td></tr>
+                <tr><td>VideoLLM-Online</td><td>2.64</td><td><strong>100</strong></td><td>681.1</td><td>0.18</td><td><strong>0.20</strong></td><td>82.4</td><td>60.39</td><td>95.32</td></tr>
+                <tr><td>MiniCPM-O (native duplex)</td><td>2.40</td><td><strong>100</strong></td><td>489.5</td><td>0.51</td><td>1.24</td><td>80.3</td><td>65.43</td><td>93.52</td></tr>
+                <tr><td>JoyAI (Agent System)</td><td>67.47</td><td>91.36</td><td>876.1</td><td>17.08</td><td>1.12</td><td>50.5</td><td>32.13</td><td>8.52</td></tr>
+            </tbody>
+        </table>
+        <p>QA 准确率上，VLX-Flow 1.5 为 76.5，高于次名 MOSS-VL（75.03），完成率 100%；QA 响应延迟 560ms，无效输出 4.1%（指未能提取出有效选项的回答占比）。主动响应轨道上，窗口内准确率 21.1 为表内最高，领先次名 JoyAI（Agent System）的 17.08 约 4 个百分点，漏报率 20.3% 为表内次低（仅高于持续输出的 LiveCC 的 0.31，多数对照在 30–68%），误报率 63.9% 在表内偏高，是下一阶段的重点优化项；中位响应延迟 0.34s，与 MOSS-VL（0.33s）相当。</p>
+
+        <h2>4. 工程价值：更高效的流式推理，更及时的持续交互</h2>
+        <p>流式架构让视频理解得以常驻设备运行——持续地看、持续地记、就近地理解，这一价值在上一代 Flow 模型中已经建立。VLX-Flow 1.5 的工程增量，是让持续运行的每一环更高效：增量更新与按需输出降低了计算与生成开销，持续描述更及时地跟随画面变化，实时问答与主动响应的等待更可控，三项交互能力的节奏真正贴近视频流本身。</p>
+        <p>更有分量的节省来自“少说”。上一代架构已经提出“按需生成”的原则，1.5 通过行为训练把它变成了模型的自觉：该静默时静默，报过之后不再重复——视频必须持续地看，输出却可以按需地给。对应用而言，这不只是交互体验，更是运行成本：更少的输出意味着更低的生成开销，长时间运行时的负担不再随视频时长无限上涨，应用侧也不必过滤、存储和处理大量无效输出。</p>
+        <p>这些价值最终落在三项交互能力的具身场景中。机器人可获得持续更新的环境语义，为导航与交互提供环境参考，而不必为每一次判断重新感知画面；摄像头应用按任务值守、主动上报，人无需盯着屏幕，只在被提醒时处理真正需要处理的事件；视频助手与屏幕助手在本地提供连续讲解与随问随答，讲解跟得上内容，提问不必等待。</p>
+        <p>VLX-Flow 1.5 继续承担 VLX 体系中的 <strong>Semantics 层</strong>，将连续画面转化为可持续更新、可交互调用的语义上下文。流式架构提供持续理解的基础，更低的运行开销、及时的响应与更可信的输出，让这套能力能够长期运行在真实设备上，也为目标定位、跟踪与具身交互等后续能力提供持续的语义支撑。</p>
+    </main>
+</body>
+</html>
